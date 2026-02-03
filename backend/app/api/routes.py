@@ -1077,7 +1077,8 @@ async def infer_with_filter(
 
 
 @router.get("/api/v1/demo/infer/filtered", response_model=InferResponse)
-def demo_infer_with_filter(
+async def demo_infer_with_filter(
+    background_tasks: BackgroundTasks,
     name: str = Query(..., description="Demo file name"),
     filter_name: str = Query(default="default", description="Filter to apply"),
 ) -> InferResponse:
@@ -1108,6 +1109,12 @@ def demo_infer_with_filter(
 
     detections = engine.predict(pil)
     filtered_detections = _apply_filter(detections, filters[filter_name])
+    
+    background_tasks.add_task(
+        _process_integrations, 
+        filtered_detections, 
+        str(engine.configured_model_path) if engine.configured_model_path else None
+    )
     
     return InferResponse(
         model_path=engine.configured_model_path,
