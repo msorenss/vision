@@ -44,3 +44,28 @@
 1770124092: New connection from 172.18.0.2:34855 on port 1883.
 1770124092: New client connected from 172.18.0.2:34855 as auto-589BFC06-35EC-CB45-E8C7-E5F25E3845A3 (p2, c1, k60).
 1770124092: Client auto-589BFC06-35EC-CB45-E8C7-E5F25E3845A3 disconnected.
+1770124318: New connection from 172.18.0.2:36817 on port 1883.
+1770124318: New client connected from 172.18.0.2:36817 as auto-8B8037E7-2CCC-55D6-3B5F-63E40B77EB52 (p2, c1, k60).
+1770124318: Client auto-8B8037E7-2CCC-55D6-3B5F-63E40B77EB52 disconnected.
+1770124319: New connection from 172.18.0.2:48511 on port 1883.
+1770124319: New client connected from 172.18.0.2:48511 as auto-0A715163-E22A-4B5E-E4E8-363647834570 (p2, c1, k60).
+1770124319: Client auto-0A715163-E22A-4B5E-E4E8-363647834570 disconnected.
+1770124320: New connection from 172.18.0.2:55153 on port 1883.
+1770124320: New client connected from 172.18.0.2:55153 as auto-E77EBBCC-646E-BC84-40F5-23C7D83C459B (p2, c1, k60).
+1770124320: Client auto-E77EBBCC-646E-BC84-40F5-23C7D83C459B disconnected.
+1770124320: New connection from 172.18.0.2:33131 on port 1883.
+1770124320: New client connected from 172.18.0.2:33131 as auto-3514BCB8-627E-705F-8E53-709856964035 (p2, c1, k60).
+1770124320: Client auto-3514BCB8-627E-705F-8E53-709856964035 disconnected.
+1770124320: New connection from 172.18.0.2:54531 on port 1883.
+1770124320: New client connected from 172.18.0.2:54531 as auto-5680ED4C-7226-77DA-18B4-8A95CC9E15A8 (p2, c1, k60).
+1770124320: Client auto-5680ED4C-7226-77DA-18B4-8A95CC9E15A8 disconnected.
+1770124320: New connection from 172.18.0.2:52603 on port 1883.
+1770124320: New client connected from 172.18.0.2:52603 as auto-B4806026-01B2-66A3-D9B2-15CFEA56D580 (p2, c1, k60).
+1770124320: Client auto-B4806026-01B2-66A3-D9B2-15CFEA56D580 disconnected.
+1770124321: New connection from 172.18.0.2:36573 on port 1883.
+1770124321: New client connected from 172.18.0.2:36573 as auto-80B9F7D8-0CB9-13EB-43DC-C8C3350DE7D4 (p2, c1, k60).
+1770124321: Client auto-80B9F7D8-0CB9-13EB-43DC-C8C3350DE7D4 disconnected.
+1770124321: New connection from 172.18.0.2:47145 on port 1883.
+1770124321: New client connected from 172.18.0.2:47145 as auto-06BDD803-3231-90E2-7B0F-EAA34BB85ADD (p2, c1, k60).
+1770124321: Client auto-06BDD803-3231-90E2-7B0F-EAA34BB85ADD disconnected.
+1770125878: Saving in-memory database to /mosquitto/data//mosquitto.db.

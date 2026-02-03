@@ -59,13 +59,13 @@ class VisionOpcUaServer:
             self.server = Server()
             await self.server.init()
             self.server.set_endpoint(endpoint)
-            self.server.set_server_name("Volvo Vision Server")
+            self.server.set_server_name("Industrial Vision Server")
             
             # --- NAMESPACES ---
             # 1. Official OPC 40100 Namespace
             ns_mv = await self.server.register_namespace("http://opcfoundation.org/UA/MachineVision")
             # 2. Legacy/Custom Namespace
-            ns_legacy = await self.server.register_namespace("http://volvocars.com/vision")
+            ns_legacy = await self.server.register_namespace("http://vision-system.local/vision")
             
             objects = self.server.nodes.objects
             

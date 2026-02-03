@@ -142,7 +142,7 @@ Bygga ett CPU-first system för bildinferens (YOLO via ONNX Runtime) med:
   - `WatcherStatusCard` UI-komponent
 
 > [!NOTE]
-> **Release v1.1.0** publicerad till Docker Hub 2026-02-01. Innehåller Model Upload, Filters och Volvo-tema.
+> **Release v1.1.0** publicerad till Docker Hub 2026-02-01. Innehåller Model Upload, Filters och Industrial Theme.
 
 ### P9 – Integration & Connectivity (Completed)
 

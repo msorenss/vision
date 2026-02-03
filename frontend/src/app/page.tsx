@@ -311,13 +311,10 @@ export default function HomePage() {
       {/* Header */}
       <header className="header">
         <div className="header-logo">
-          {/* Volvo Iron Mark */}
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-            <circle cx="16" cy="16" r="14" stroke="currentColor" strokeWidth="2.5" fill="none" />
-            <path d="M8 16h16M22 10l-6 6 6 6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-          </svg>
+          {/* Logo */}
+          <span style={{ fontSize: "1.5rem", lineHeight: 1 }}>👁️</span>
           <span style={{ color: 'var(--color-primary)', WebkitTextFillColor: 'var(--color-primary)' }}>
-            Volvo Cars Vision
+            Vision System
           </span>
         </div>
 

@@ -1,4 +1,4 @@
-# Volvo Cars Vision
+# Industrial Vision System
 
 AI-powered object detection using ONNX Runtime. CPU-first, runs on any platform including Raspberry Pi.
 

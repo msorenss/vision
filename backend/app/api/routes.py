@@ -1189,7 +1189,7 @@ def _get_integrations_status() -> IntegrationsStatus:
         running=server_instance.running,
         endpoint=opcua_endpoint if opcua_enabled else None,
         port=opcua_port,
-        namespace="http://volvocars.com/vision",
+        namespace="http://vision-system.local/vision",
         update_interval_ms=opcua_interval,
     )
     
