@@ -171,6 +171,18 @@ curl -X POST http://localhost:8000/api/v1/infer -F "image=@photo.jpg"
 | macOS | amd64/arm64 | ✅ Tested |
 | Raspberry Pi | arm64 | ✅ Tested |
 
+## Industrial Connectivity (New in v1.3.0)
+
+The system is designed for Industry 4.0 integration:
+
+- **OPC UA Server (Port 4840)**:
+  - **Standard**: OPC 40100-1 Machine Vision Companion Specification.
+  - **Features**: State Machine, Result Events, Remote Control (Start/Stop/Model Select).
+  - **Legacy Mode**: Simplified nodes for older PLCs.
+- **MQTT Broker (Port 1883)**:
+  - Built-in Mosquitto broker.
+  - Publishes JSON results to `vision/results`.
+
 ## Docker Images
 
 | Image | Description |
@@ -184,7 +196,8 @@ curl -X POST http://localhost:8000/api/v1/infer -F "image=@photo.jpg"
 | Tag | Description |
 |-----|-------------|
 | `latest` | Most recent stable build |
-| `1.2.0` | Current version (recommended) |
+| `1.3.5` | Current version (Industrial Features included) |
+| `1.2.0` | Previous stable (Basic API) |
 
 ## MCP Server (AI Assistant Integration)
 

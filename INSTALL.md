@@ -79,6 +79,7 @@ docker run -d \
 ```
 
 **Flow:**
+
 1. Drop image into `./inbox/`
 2. Detection runs automatically
 3. JSON results saved to `./results/`
@@ -103,6 +104,8 @@ services:
       - ./output:/output
     ports:
       - "8000:8000"
+      - "4840:4840" # OPC UA
+      - "1883:1883" # MQTT
 ```
 
 ## Model Bundle Format
@@ -148,7 +151,8 @@ curl -X POST http://localhost:8000/api/v1/infer -F "image=@photo.jpg"
 | Tag | Description |
 |-----|-------------|
 | `latest` | Most recent stable build |
-| `v1.0.0` | Pinned version (recommended) |
+| `1.3.5` | Industrial Features (OPC UA, MQTT) |
+| `1.2.0` | Basic API Stable |
 
 ## Support
 

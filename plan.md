@@ -26,11 +26,11 @@ Bygga ett CPU-first system för bildinferens (YOLO via ONNX Runtime) med:
 - [x] Upload-kompat: `/api/v1/infer` accepterar fält `image` (nytt) och `file` (legacy).
 - [x] Valfri persist av uploads till `/input/_uploads` med `VISION_SAVE_UPLOADS=1`.
 - [x] Säker “töm input”-funktion:
-    - CLI: `vision.bat clear-uploads` och `vision.bat clear-input`.
-    - API: `POST /api/v1/demo/clear` (kräver `VISION_DEMO_ALLOW_MUTATIONS=1`).
+  - CLI: `vision.bat clear-uploads` och `vision.bat clear-input`.
+  - API: `POST /api/v1/demo/clear` (kräver `VISION_DEMO_ALLOW_MUTATIONS=1`).
 - [x] Settings-sida i UI:
-    - API base i localStorage.
-    - Backend settings via `GET/POST /api/v1/settings` (runtime update kräver `VISION_ALLOW_RUNTIME_SETTINGS=1`).
+  - API base i localStorage.
+  - Backend settings via `GET/POST /api/v1/settings` (runtime update kräver `VISION_ALLOW_RUNTIME_SETTINGS=1`).
 - [x] Valfri OpenVINO acceleration via ONNX Runtime EP + compose override.
 
 ### Viktiga designbeslut
@@ -44,41 +44,41 @@ Bygga ett CPU-first system för bildinferens (YOLO via ONNX Runtime) med:
 ### P0 – Nästa commit (små men viktiga)
 
 - [x] Visa “file counts” i Settings:
-    - antal filer i `/input` (exkl. `_uploads`)
-    - antal filer i `/input/_uploads`
-    - gärna även “senast ändrad” eller storlek (om det är lätt)
+  - antal filer i `/input` (exkl. `_uploads`)
+  - antal filer i `/input/_uploads`
+  - gärna även “senast ändrad” eller storlek (om det är lätt)
 - [x] Förbättra “build”-flöde i `vision.bat`:
-    - se över varför `vision.bat build` kan ge exit code 1 (om det fortfarande händer)
-    - ge tydligare felmeddelanden och tips
+  - se över varför `vision.bat build` kan ge exit code 1 (om det fortfarande händer)
+  - ge tydligare felmeddelanden och tips
 
 ### P1 – Stabilitet & kvalitet (MVP hårdning)
 
 - [x] “Health + readiness”:
-    - behåll `/health`, lägg till modell-ready status (modell laddad + providers)
+  - behåll `/health`, lägg till modell-ready status (modell laddad + providers)
 - [x] Loggning:
-    - strukturera loggar (request-id, latency, model version)
+  - strukturera loggar (request-id, latency, model version)
 - [x] Begränsningar i upload:
-    - max filstorlek, tydliga felkoder och feltexter
+  - max filstorlek, tydliga felkoder och feltexter
 - [x] Smoke-test script (ingen full test-suite krävs):
-    - curl-test som kör infer på en testbild och verifierar JSON-format
+  - curl-test som kör infer på en testbild och verifierar JSON-format
 
 ### P2 – Model lifecycle (lite mer “riktig produkt”)
 
 - [x] “Model registry” i API:
-    - lista bundles i `./models`, visa version, input_size och export-info
-    - endpoint för att byta aktiv modell (guarded)
+  - lista bundles i `./models`, visa version, input_size och export-info
+  - endpoint för att byta aktiv modell (guarded)
 - [x] “Bundle export/import”:
-    - exportera zip med `model.onnx/labels.txt/meta.json`
-    - importera zip (validera innehåll)
+  - exportera zip med `model.onnx/labels.txt/meta.json`
+  - importera zip (validera innehåll)
 
 ### P3 – Raspberry Pi (Runner)
 
 - [x] Dokumentera Pi-run med `docker-compose.runner.yml`:
-    - ARM64 krav + hur man mountar `/input` på Pi
+  - ARM64 krav + hur man mountar `/input` på Pi
 - [x] Säker “watch-folder mode” på Pi:
-    - robusthet vid trasiga filer, partial writes, och stora mappar
+  - robusthet vid trasiga filer, partial writes, och stora mappar
 - [x] Pull model bundle från “builder maskin”:
-    - script eller endpoint för att hämta senaste bundle
+  - script eller endpoint för att hämta senaste bundle
 
 ### P4 – Acceleration (valfritt)
 
@@ -88,34 +88,34 @@ Bygga ett CPU-first system för bildinferens (YOLO via ONNX Runtime) med:
 ### P5 – Professionell GUI (polish)
 
 - [x] Modern design:
-    - dark mode / light mode toggle
-    - konsekvent färgpalett och typografi
-    - responsiv layout (mobil + desktop)
+  - dark mode / light mode toggle
+  - konsekvent färgpalett och typografi
+  - responsiv layout (mobil + desktop)
 - [x] Förbättrad inferens-vy:
-    - bounding boxes med labels direkt på bilden
-    - confidence score-visning
-    - zoombar bild
+  - bounding boxes med labels direkt på bilden
+  - confidence score-visning
+  - zoombar bild
 - [ ] Dashboard-vy:
-    - statistik (antal inferenser, senaste aktivitet)
-    - modellinfo prominent visad
+  - statistik (antal inferenser, senaste aktivitet)
+  - modellinfo prominent visad
 - [x] Förbättrad UX:
-    - drag-and-drop upload
-    - loading spinners och progress
-    - toast-notifikationer
+  - drag-and-drop upload
+  - loading spinners och progress
+  - toast-notifikationer
 - [x] Settings-polish:
-    - bättre gruppering
-    - visuell feedback vid ändringar
+  - bättre gruppering
+  - visuell feedback vid ändringar
 - [x] Internationalisering:
-    - Svenska och Engelska
-    - Språkväljare i header
+  - Svenska och Engelska
+  - Språkväljare i header
 
 ### P6 – Automatisk inferens-mapp
 
 - [x] Watch-folder med auto-move:
-    - `VISION_WATCH_INPUT` för inkommande bilder
-    - `VISION_WATCH_PROCESSED` för färdigbehandlade
-    - `VISION_WATCH_MODE` (json/move/both)
-    - Kör automatiskt inferens på nya bilder
+  - `VISION_WATCH_INPUT` för inkommande bilder
+  - `VISION_WATCH_PROCESSED` för färdigbehandlade
+  - `VISION_WATCH_MODE` (json/move/both)
+  - Kör automatiskt inferens på nya bilder
 
 ### P7 – Docker Hub Publishing
 
@@ -123,23 +123,23 @@ Bygga ett CPU-first system för bildinferens (YOLO via ONNX Runtime) med:
 - [x] Versionstaggar (v1.0.0)
 - [x] `docker-compose.production.yml` för enkel deployment
 - [x] `INSTALL.md` installationsguide med:
-    - Alla volume-mappningar (input/output/models)
-    - Alla miljövariabler dokumenterade
-    - Användningsexempel för Windows/Linux/Pi
+  - Alla volume-mappningar (input/output/models)
+  - Alla miljövariabler dokumenterade
+  - Användningsexempel för Windows/Linux/Pi
 
 ### P8 – Model Management & Detection Filters
 
 - [x] Model Upload:
-    - `POST /api/v1/models/upload` endpoint
-    - Sparar ONNX + labels.txt som bundle
+  - `POST /api/v1/models/upload` endpoint
+  - Sparar ONNX + labels.txt som bundle
 - [x] Detection Filters:
-    - `filters.json` konfigurationsfil
-    - `GET/POST/DELETE /api/v1/filters` endpoints
-    - `POST /api/v1/infer/filtered` med filterparameter
-    - `FilterSelector` UI-komponent
+  - `filters.json` konfigurationsfil
+  - `GET/POST/DELETE /api/v1/filters` endpoints
+  - `POST /api/v1/infer/filtered` med filterparameter
+  - `FilterSelector` UI-komponent
 - [x] Auto-Detection Status:
-    - `GET /api/v1/watcher/status` endpoint
-    - `WatcherStatusCard` UI-komponent
+  - `GET /api/v1/watcher/status` endpoint
+  - `WatcherStatusCard` UI-komponent
 
 > [!NOTE]
 > **Release v1.1.0** publicerad till Docker Hub 2026-02-01. Innehåller Model Upload, Filters och Volvo-tema.
@@ -147,14 +147,17 @@ Bygga ett CPU-first system för bildinferens (YOLO via ONNX Runtime) med:
 ### P9 – Integration & Connectivity (Completed)
 
 - [x] **REST API Push (Webhook)**
-    - Konfiguration för URL, method, headers
-    - Skicka inferensresultat JSON till externt system
-- [x] **MQTT Client**
-    - Connecta till broker
-    - Publicera detektioner till konfigurerbar topic
-- [x] **OPC UA Server**
-    - Implementera server enligt Vision Companion standard
-    - Exponera noder: Status, LastResult, DetectionCount
+  - Konfiguration för URL, method, headers
+  - Skicka inferensresultat JSON till externt system
+- [x] **MQTT Client (Internal & External)**
+  - Inbyggd Mosquitto broker (port 1883)
+  - Konfigurerbar topic/auth
+- [x] **OPC UA Server (Industriell Standard)**
+  - **40100-1 Compliance**: Machine Vision Companion Spec
+  - **Events**: `ResultReadyEventType` (Push-baserad integration)
+  - **Methods**: `Start`, `Stop`, `SelectModel` (Styrning från PLC)
+  - **Alarms**: `SystemErrorAlarm`
+  - **Legacy Support**: Förenklade noder för äldre PLC:er
 
 ### P10 – Training Pipeline (Future)
 
@@ -162,7 +165,6 @@ Bygga ett CPU-first system för bildinferens (YOLO via ONNX Runtime) med:
 - [ ] Träningssida med parametrar
 - [ ] Annotationsverktyg
 - [ ] YOLO export-format
-
 
 ## Definition of Done (för MVP)
 
@@ -174,5 +176,3 @@ Bygga ett CPU-first system för bildinferens (YOLO via ONNX Runtime) med:
 ## Anteckningar
 
 - [plan.md](plan.md) är källan för status + TODO.
-
-
