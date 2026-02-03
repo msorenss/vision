@@ -37,9 +37,9 @@ services:
 
       # Integrations
       - VISION_WEBHOOK_URL=${VISION_WEBHOOK_URL:-}
-      - VISION_MQTT_BROKER=${VISION_MQTT_BROKER:-}
+      - VISION_MQTT_BROKER=${VISION_MQTT_BROKER:-mqtt}
       - VISION_MQTT_TOPIC=${VISION_MQTT_TOPIC:-vision/results}
-      - VISION_OPCUA_ENABLE=${VISION_OPCUA_ENABLE:-0}
+      - VISION_OPCUA_ENABLE=${VISION_OPCUA_ENABLE:-1}
     volumes:
       - ./models:/models
       - ${VISION_INPUT_HOST_PATH:-./input}:/input
@@ -71,3 +71,14 @@ services:
       - MCP_TRANSPORT=sse
     ports:
       - "8080:8080"
+
+  mqtt:
+    image: eclipse-mosquitto:2.0
+    restart: always
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log

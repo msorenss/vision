@@ -622,6 +622,7 @@ def download_model_bundle() -> StreamingResponse:
 
 async def _process_integrations(detections: list, model_path: str | None) -> None:
     """Process integrations (OPC UA, MQTT, Webhook) in background."""
+    from fastapi.encoders import jsonable_encoder
     from app.integrations.mqtt_client import publish_results
     from app.integrations.opcua_server import server_instance
     from app.integrations.webhook import send_webhook
@@ -657,7 +658,7 @@ async def _process_integrations(detections: list, model_path: str | None) -> Non
         "model": model_name,
         "model_path": str(model_path),
         "count": len(detections),
-        "detections": detections,
+        "detections": jsonable_encoder(detections),
     }
 
     # 1. OPC UA
