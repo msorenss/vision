@@ -8,7 +8,7 @@ import zipfile
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from PIL import Image, ImageOps
 
@@ -620,8 +620,61 @@ def download_model_bundle() -> StreamingResponse:
     )
 
 
+async def _process_integrations(detections: list, model_path: str | None) -> None:
+    """Process integrations (OPC UA, MQTT, Webhook) in background."""
+    from app.integrations.mqtt_client import publish_results
+    from app.integrations.opcua_server import server_instance
+    from app.integrations.webhook import send_webhook
+
+    timestamp = datetime.utcnow().isoformat() + "Z"
+    
+    # Try to extract a friendly model name
+    model_name = "Unknown"
+    if model_path:
+        try:
+            p = Path(model_path)
+            # e.g. /models/demo/v1/model.onnx -> "demo (v1)"
+            # parts: ('/', 'models', 'demo', 'v1', 'model.onnx')
+            if len(p.parts) >= 3 and p.parents[2].name != "models":
+                 # Fallback logic
+                 pass
+            
+            # Simple heuristic: use directory name + parent
+            # v1/model.onnx -> use parent name "v1"
+            # demo/v1 -> "demo v1"
+            
+            bundle_ver = p.parent.name
+            bundle_name = p.parent.parent.name
+            if bundle_name == "models": 
+                model_name = bundle_ver
+            else:
+                model_name = f"{bundle_name} {bundle_ver}"
+        except Exception:
+            model_name = str(model_path)
+
+    payload = {
+        "timestamp": timestamp,
+        "model": model_name,
+        "model_path": str(model_path),
+        "count": len(detections),
+        "detections": detections,
+    }
+
+    # 1. OPC UA
+    if server_instance.running:
+        await server_instance.update_result(payload, model_name)
+
+    # 2. MQTT
+    await publish_results(payload)
+
+    # 3. Webhook
+    await send_webhook(payload)
+
+
+
 @router.post("/api/v1/infer", response_model=InferResponse)
 async def infer(
+    background_tasks: BackgroundTasks,
     image: UploadFile | None = File(None),
     file: UploadFile | None = File(None),
 ) -> InferResponse:
@@ -677,6 +730,12 @@ async def infer(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    background_tasks.add_task(
+        _process_integrations, 
+        detections, 
+        str(engine.configured_model_path) if engine.configured_model_path else None
+    )
 
     return InferResponse(
         model_path=engine.configured_model_path,
@@ -965,6 +1024,7 @@ async def upload_model(
 
 @router.post("/api/v1/infer/filtered", response_model=InferResponse)
 async def infer_with_filter(
+    background_tasks: BackgroundTasks,
     image: UploadFile = File(...),
     filter_name: str = Query(default="default", description="Filter to apply"),
 ) -> InferResponse:
@@ -1000,6 +1060,12 @@ async def infer_with_filter(
     
     # Apply filter
     filtered_detections = _apply_filter(detections, filter_config)
+    
+    background_tasks.add_task(
+        _process_integrations, 
+        filtered_detections, 
+        str(engine.configured_model_path) if engine.configured_model_path else None
+    )
     
     return InferResponse(
         model_path=engine.configured_model_path,
