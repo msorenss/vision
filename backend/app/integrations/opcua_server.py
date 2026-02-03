@@ -39,6 +39,11 @@ class VisionOpcUaServer:
         self.custom_idx = 0
         self._current_state = VisionState.Preoperational
         self.evt_result_ready_type = None
+        self.alarm_node = None
+        self.callbacks = {}
+
+    def register_callback(self, name: str, func):
+        self.callbacks[name] = func
 
     async def start(self):
         if not Server:
@@ -112,6 +117,12 @@ class VisionOpcUaServer:
             # Reset
             await self.vs_40100.add_method(ns_mv, "Reset", self.method_reset, inargs, [])
 
+            # --- CONFIG METHODS (Volvo Standard) ---
+            # SelectModel
+            model_args = [ua.Argument(Name="ModelName", DataType=ua.NodeId(ua.ObjectIds.String), ValueRank=-1, ArrayDimensions=[])]
+            out_res = [ua.Argument(Name="Result", DataType=ua.NodeId(ua.ObjectIds.String), ValueRank=-1, ArrayDimensions=[])]
+            await self.vs_40100.add_method(ns_mv, "SelectModel", self.method_select_model, model_args, out_res)
+
             # --- EVENTS (40100 Compliance) ---
             # Define ResultReadyEventType
             # Note: create_custom_event_type is a helper. ResultManagementType should ideally host this.
@@ -123,10 +134,13 @@ class VisionOpcUaServer:
                     ("ProcessingTimes", ua.VariantType.Double),
                 ]
             )
-            # Add CreationTime (optional, or use standard Time) - BaseEventType has Time
-
-            # Add reference to ResultManagement to indicate it generates this event
-            # self.result_mgmt.add_reference(ua.ObjectIds.GeneratesEvent, self.evt_result_ready_type.nodeid)
+            
+            # --- ALARMS ---
+            # Create a simplified SystemErrorAlarm
+            # We use an object that represents the alarm condition
+            self.alarm_node = await self.vs_40100.add_object(ns_mv, "SystemErrorAlarm", ua.ObjectIds.AlarmConditionType)
+            await self.alarm_node.set_event_notifier([ua.EventNotifier.SubscribeToEvents])
+            # Note: Full Alarm implementation is complex. We will simulate it by triggering events from this node.
 
             # Start Server
             await self.server.start()
@@ -135,7 +149,7 @@ class VisionOpcUaServer:
             # Transition to Ready
             await self.set_state(VisionState.Ready)
             
-            logger.info(f"OPC UA Server started at {endpoint} (Legacy + 40100 + Events & Methods)")
+            logger.info(f"OPC UA Server started at {endpoint} (Full Industrial Capable)")
             
         except Exception as e:
             logger.error(f"Failed to start OPC UA Server: {e}")
@@ -148,25 +162,31 @@ class VisionOpcUaServer:
         logger.info("OPC UA: StartSingleJob")
         if self._current_state != VisionState.Ready:
              logger.warning(f"StartSingleJob failed: State is {self._current_state.name}")
-             # In 40100 strictly this should raise a BadInvalidState or similar, 
-             # but we just return empty string or handle gracefully
-             # For now, let's allow it but log warning
-             pass 
+             return ""
 
-        # Trigger logic
+        # Trigger internal callback if registered
+        if "start_job" in self.callbacks:
+             # run callback in background to not block OPC UA
+             asyncio.create_task(self.callbacks["start_job"]())
+        else:
+             # Simulated fallback
+             asyncio.create_task(self._simulate_job(single=True))
+             
         job_id = f"job-{asyncio.get_event_loop().time()}"
-        asyncio.create_task(self._simulate_job(single=True))
         return job_id
 
     @uamethod
     async def method_start_continuous(self, parent):
         logger.info("OPC UA: StartContinuous")
         if self._current_state != VisionState.Ready:
-             pass # Logic check
+             pass 
 
         job_id = f"cont-{asyncio.get_event_loop().time()}"
         await self.set_state(VisionState.ContinuousExecution)
-        # TODO: Connect to backend continuous loop if existing
+        
+        if "start_continuous" in self.callbacks:
+            asyncio.create_task(self.callbacks["start_continuous"]())
+            
         return job_id
 
     @uamethod
@@ -174,17 +194,41 @@ class VisionOpcUaServer:
         logger.info("OPC UA: Stop")
         if self._current_state == VisionState.ContinuousExecution:
             await self.set_state(VisionState.Ready)
+            if "stop" in self.callbacks:
+                asyncio.create_task(self.callbacks["stop"]())
 
     @uamethod
     async def method_abort(self, parent):
         logger.info("OPC UA: Abort")
-        await self.set_state(VisionState.Ready) # Or Error? Usually returns to Ready or Error
+        await self.set_state(VisionState.Ready)
+        if "abort" in self.callbacks:
+            asyncio.create_task(self.callbacks["abort"]())
 
     @uamethod
     async def method_reset(self, parent):
         logger.info("OPC UA: Reset")
         if self._current_state == VisionState.Error:
             await self.set_state(VisionState.Ready)
+            if "reset" in self.callbacks:
+                asyncio.create_task(self.callbacks["reset"]())
+
+    @uamethod
+    async def method_select_model(self, parent, model_name):
+        logger.info(f"OPC UA: SelectModel({model_name})")
+        mname = model_name
+        if hasattr(model_name, "Value"):
+            mname = model_name.Value
+            
+        if "select_model" in self.callbacks:
+             try:
+                 # Call callback
+                 # We expect this to be async or we wrap it
+                 res = await self.callbacks["select_model"](str(mname))
+                 return "OK" if res else "Failed"
+             except Exception as e:
+                 logger.error(f"SelectModel failed: {e}")
+                 return f"Error: {e}"
+        return "No backend handler"
 
     async def _simulate_job(self, single=True):
         await self.set_state(VisionState.SingleExecution)
@@ -265,10 +309,33 @@ class VisionOpcUaServer:
             logger.error(f"Error updating OPC UA nodes: {e}")
 
     async def set_state(self, state: VisionState):
+        old_state = self._current_state
         self._current_state = state
         if not self.running:
             return
+        
+        # Helper to trigger alarm events
+        async def trigger_alarm(activate: bool, message: str):
+            if not self.alarm_node: return
+            try:
+                # Get the event generator from the AlarmConditionType
+                gen = await self.server.get_event_generator(self.alarm_node)
+                gen.event.Message = ua.LocalizedText(message)
+                gen.event.Severity = 1000 if activate else 0
+                gen.event.Retain = activate
+                gen.event.ConditionName = "SystemError"
+                # gen.event.EnabledState = ... complex types often need simplifications
+                await gen.trigger()
+            except Exception as e:
+                logger.warning(f"Failed to trigger alarm: {e}")
+
         try:
+            # Handle Alarms based on state
+            if state == VisionState.Error and old_state != VisionState.Error:
+                await trigger_alarm(True, "System entered Error State")
+            elif old_state == VisionState.Error and state != VisionState.Error:
+                await trigger_alarm(False, "System recovered from Error")
+
             # Update 40100 State (String)
             if self.state_node:
                 await self.state_node.write_value(state.name)

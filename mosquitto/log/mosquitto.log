@@ -31,3 +31,16 @@
 1770123343: New connection from 172.18.0.2:38227 on port 1883.
 1770123343: New client connected from 172.18.0.2:38227 as auto-023C51E4-80DE-4AAD-7F0D-DF60F3BD6FB5 (p2, c1, k60).
 1770123343: Client auto-023C51E4-80DE-4AAD-7F0D-DF60F3BD6FB5 disconnected.
+1770123500: New connection from 172.18.0.2:44733 on port 1883.
+1770123500: New client connected from 172.18.0.2:44733 as auto-3F44C784-1729-E5B6-4141-27BD4B517CFF (p2, c1, k60).
+1770123500: Client auto-3F44C784-1729-E5B6-4141-27BD4B517CFF disconnected.
+1770124074: mosquitto version 2.0.22 terminating
+1770124074: Saving in-memory database to /mosquitto/data//mosquitto.db.
+1770124078: mosquitto version 2.0.22 starting
+1770124078: Config loaded from /mosquitto/config/mosquitto.conf.
+1770124078: Opening ipv4 listen socket on port 1883.
+1770124078: Opening ipv6 listen socket on port 1883.
+1770124078: mosquitto version 2.0.22 running
+1770124092: New connection from 172.18.0.2:34855 on port 1883.
+1770124092: New client connected from 172.18.0.2:34855 as auto-589BFC06-35EC-CB45-E8C7-E5F25E3845A3 (p2, c1, k60).
+1770124092: Client auto-589BFC06-35EC-CB45-E8C7-E5F25E3845A3 disconnected.

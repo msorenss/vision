@@ -48,6 +48,19 @@ async def main():
                 print(f"HTTP Trigger failed: {e}")
             sys.stdout.flush()
 
+            # Test SelectModel
+            print("Calling SelectModel('demo v1')...")
+            sys.stdout.flush()
+            try:
+                # Find SelectModel method
+                method_select = await obj_mv.get_child([f"{idx_mv}:SelectModel"])
+                # Call it
+                res = await obj_mv.call_method(method_select, "demo v1")
+                print(f"SelectModel Result: {res}")
+            except Exception as e:
+                print(f"SelectModel Error: {e}")
+            sys.stdout.flush()
+
             await asyncio.sleep(5)
             print("Done waiting.")
             sys.stdout.flush()

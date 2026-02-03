@@ -73,6 +73,13 @@ def create_app() -> FastAPI:
         if load_watch_config().enabled:
             asyncio.create_task(run_watch_loop())
 
+        # Register OPC UA Callbacks (Methods -> Backend)
+        try:
+            from app.integrations.opcua_callbacks import setup_opcua_callbacks
+            await setup_opcua_callbacks()
+        except Exception as e:
+            logging.getLogger("app.main").warning(f"OPC UA Callbacks setup failed (or not active): {e}")
+
     return app
 
 
