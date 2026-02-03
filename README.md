@@ -32,9 +32,12 @@ services:
     depends_on:
       modelprep:
         condition: service_completed_successfully
+      mqtt:
+        condition: service_started
     environment:
       - VISION_MODEL_PATH=/models/demo/v1/model.onnx
       - VISION_WATCH=1
+      - VISION_MQTT_BROKER=mqtt
     volumes:
       - ./models:/models:ro
       - ./input:/input
@@ -52,6 +55,17 @@ services:
       - NEXT_PUBLIC_API_BASE=http://localhost:8000
     ports:
       - "3000:3000"
+      
+  mqtt:
+    image: eclipse-mosquitto:2.0
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
 ```
 
 Start everything:
@@ -190,6 +204,7 @@ The system is designed for Industry 4.0 integration:
 | `marcussorensson218/vision-runner` | Inference API server |
 | `marcussorensson218/vision-modelprep` | Model bootstrap/preparation |
 | `marcussorensson218/vision-ui` | Web UI (Next.js) |
+| `eclipse-mosquitto:2.0` | MQTT Broker (Official Image) |
 
 ### Tags
 
