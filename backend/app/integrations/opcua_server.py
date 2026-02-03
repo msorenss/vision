@@ -2,6 +2,7 @@ import os
 import json
 import logging
 import asyncio
+from datetime import datetime
 from typing import Any
 from enum import IntEnum
 
@@ -37,6 +38,7 @@ class VisionOpcUaServer:
         self.namespace_idx = 0
         self.custom_idx = 0
         self._current_state = VisionState.Preoperational
+        self.evt_result_ready_type = None
 
     async def start(self):
         if not Server:
@@ -81,6 +83,8 @@ class VisionOpcUaServer:
             # --- OPC 40100 IMPLEMENTATION (Standard Compliant) ---
             # Object: VisionSystem (Standard)
             self.vs_40100 = await objects.add_object(ns_mv, "VisionSystem")
+            # Enable Event Notifications
+            await self.vs_40100.set_event_notifier([ua.EventNotifier.SubscribeToEvents])
             
             # Component: VisionStateMachine
             self.vsm = await self.vs_40100.add_object(ns_mv, "VisionStateMachine")
@@ -108,6 +112,22 @@ class VisionOpcUaServer:
             # Reset
             await self.vs_40100.add_method(ns_mv, "Reset", self.method_reset, inargs, [])
 
+            # --- EVENTS (40100 Compliance) ---
+            # Define ResultReadyEventType
+            # Note: create_custom_event_type is a helper. ResultManagementType should ideally host this.
+            self.evt_result_ready_type = await self.server.create_custom_event_type(
+                ns_mv, "ResultReadyEventType", ua.ObjectIds.BaseEventType,
+                [
+                    ("ResultId", ua.VariantType.String),
+                    ("JobId", ua.VariantType.String),
+                    ("ProcessingTimes", ua.VariantType.Double),
+                ]
+            )
+            # Add CreationTime (optional, or use standard Time) - BaseEventType has Time
+
+            # Add reference to ResultManagement to indicate it generates this event
+            # self.result_mgmt.add_reference(ua.ObjectIds.GeneratesEvent, self.evt_result_ready_type.nodeid)
+
             # Start Server
             await self.server.start()
             self.running = True
@@ -115,7 +135,7 @@ class VisionOpcUaServer:
             # Transition to Ready
             await self.set_state(VisionState.Ready)
             
-            logger.info(f"OPC UA Server started at {endpoint} (Legacy + 40100)")
+            logger.info(f"OPC UA Server started at {endpoint} (Legacy + 40100 + Events & Methods)")
             
         except Exception as e:
             logger.error(f"Failed to start OPC UA Server: {e}")
@@ -216,7 +236,30 @@ class VisionOpcUaServer:
             if self.model_node:
                 await self.model_node.write_value(model_name)
             
-            # 4. Future: Trigger 40100 ResultReadyEvent here
+            # 4. Trigger 40100 ResultReadyEvent
+            if self.evt_result_ready_type:
+                # Event source should be VisionSystem or ResultManagement
+                # Using VisionSystem (vs_40100) as source
+                my_event = await self.server.get_event_generator(self.evt_result_ready_type, self.vs_40100)
+                
+                # Standard Event Fields
+                my_event.event.Message = ua.LocalizedText("Result Ready")
+                my_event.event.Severity = 100
+                # my_event.event.Time = datetime.utcnow() # BaseEventType handles this automatically usually
+
+                # Custom Fields
+                # Generate a simple ResultId (e.g. timestamp + counter)
+                res_id = f"res-{datetime.utcnow().timestamp()}"
+                my_event.event.ResultId = res_id
+                
+                # JobId (pass through if available in result, else manual)
+                my_event.event.JobId = result.get("jobId", "job-manual")
+                
+                # ProcessingTimes
+                my_event.event.ProcessingTimes = result.get("inference_time", 0.0)
+
+                await my_event.trigger()
+                logger.debug(f"Triggered ResultReadyEvent: {res_id}")
             
         except Exception as e:
             logger.error(f"Error updating OPC UA nodes: {e}")

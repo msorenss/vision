@@ -21,3 +21,13 @@
 1770122636: New connection from 172.18.0.2:55095 on port 1883.
 1770122636: New client connected from 172.18.0.2:55095 as auto-099E2032-2476-D633-3CCA-3F79353DDBE3 (p2, c1, k60).
 1770122636: Client auto-099E2032-2476-D633-3CCA-3F79353DDBE3 disconnected.
+1770123323: mosquitto version 2.0.22 terminating
+1770123323: Saving in-memory database to /mosquitto/data//mosquitto.db.
+1770123327: mosquitto version 2.0.22 starting
+1770123327: Config loaded from /mosquitto/config/mosquitto.conf.
+1770123327: Opening ipv4 listen socket on port 1883.
+1770123327: Opening ipv6 listen socket on port 1883.
+1770123327: mosquitto version 2.0.22 running
+1770123343: New connection from 172.18.0.2:38227 on port 1883.
+1770123343: New client connected from 172.18.0.2:38227 as auto-023C51E4-80DE-4AAD-7F0D-DF60F3BD6FB5 (p2, c1, k60).
+1770123343: Client auto-023C51E4-80DE-4AAD-7F0D-DF60F3BD6FB5 disconnected.
