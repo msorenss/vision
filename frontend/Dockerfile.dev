@@ -1,0 +1,22 @@
+# Vision Frontend - Development Dockerfile
+# Solves node_modules volume mount issue by keeping dependencies inside the container
+
+FROM node:20-bookworm
+
+WORKDIR /app
+
+# Copy package files first (for caching)
+COPY package*.json ./
+
+# Install dependencies in container
+RUN npm install
+
+# Next.js dev server port
+EXPOSE 3000
+
+# Environment for development
+ENV NODE_ENV=development
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Start development server
+CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]

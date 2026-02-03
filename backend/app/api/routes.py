@@ -1071,3 +1071,195 @@ def get_model_labels() -> dict:
         "labels": labels,
         "count": len(labels),
     }
+
+
+# ============ Integrations ============
+
+from app.api.schema import (
+    IntegrationsStatus,
+    IntegrationsUpdate,
+    OpcUaStatus,
+    MqttStatus,
+    WebhookStatus,
+)
+
+
+def _get_integrations_status() -> IntegrationsStatus:
+    """Get current status of all integrations."""
+    # Check if libraries are available
+    try:
+        import aiomqtt
+        mqtt_available = True
+    except ImportError:
+        mqtt_available = False
+    
+    try:
+        from asyncua import Server
+        opcua_available = True
+    except ImportError:
+        opcua_available = False
+    
+    # Get OPC UA status
+    from app.integrations.opcua_server import server_instance
+    opcua_enabled = os.getenv("VISION_OPCUA_ENABLE", "0") == "1"
+    opcua_port = int(os.getenv("VISION_OPCUA_PORT", "4840"))
+    opcua_endpoint = os.getenv(
+        "VISION_OPCUA_ENDPOINT",
+        f"opc.tcp://0.0.0.0:{opcua_port}/freeopcua/server/"
+    )
+    opcua_interval = int(os.getenv("VISION_OPCUA_UPDATE_INTERVAL_MS", "0"))
+    
+    opcua_status = OpcUaStatus(
+        available=opcua_available,
+        enabled=opcua_enabled,
+        running=server_instance.running,
+        endpoint=opcua_endpoint if opcua_enabled else None,
+        port=opcua_port,
+        namespace="http://volvocars.com/vision",
+        update_interval_ms=opcua_interval,
+    )
+    
+    # Get MQTT status
+    mqtt_broker = os.getenv("VISION_MQTT_BROKER")
+    mqtt_port = int(os.getenv("VISION_MQTT_PORT", "1883"))
+    mqtt_topic = os.getenv("VISION_MQTT_TOPIC", "vision/results")
+    mqtt_username = os.getenv("VISION_MQTT_USERNAME")
+    
+    mqtt_status = MqttStatus(
+        available=mqtt_available,
+        configured=bool(mqtt_broker),
+        broker=mqtt_broker,
+        port=mqtt_port,
+        topic=mqtt_topic,
+        username=mqtt_username,
+    )
+    
+    # Get Webhook status
+    webhook_url = os.getenv("VISION_WEBHOOK_URL")
+    webhook_headers = os.getenv("VISION_WEBHOOK_HEADERS", "{}")
+    has_custom_headers = webhook_headers != "{}" and bool(webhook_headers)
+    
+    webhook_status = WebhookStatus(
+        configured=bool(webhook_url),
+        url=webhook_url,
+        has_custom_headers=has_custom_headers,
+    )
+    
+    return IntegrationsStatus(
+        opcua=opcua_status,
+        mqtt=mqtt_status,
+        webhook=webhook_status,
+    )
+
+
+@router.get("/api/v1/integrations", response_model=IntegrationsStatus)
+def get_integrations() -> IntegrationsStatus:
+    """Get status of all integrations (OPC UA, MQTT, Webhook)."""
+    return _get_integrations_status()
+
+
+@router.post("/api/v1/integrations", response_model=IntegrationsStatus)
+async def update_integrations(update: IntegrationsUpdate) -> IntegrationsStatus:
+    """Update integration settings at runtime."""
+    if not _allow_runtime_settings():
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Runtime settings are disabled. "
+                "Set VISION_ALLOW_RUNTIME_SETTINGS=1 to enable "
+                "/api/v1/integrations updates."
+            ),
+        )
+    
+    # Update OPC UA settings
+    if update.opcua_enabled is not None:
+        os.environ["VISION_OPCUA_ENABLE"] = "1" if update.opcua_enabled else "0"
+        
+        # Start or stop the OPC UA server
+        from app.integrations.opcua_server import server_instance
+        if update.opcua_enabled and not server_instance.running:
+            await server_instance.start()
+        elif not update.opcua_enabled and server_instance.running:
+            await server_instance.stop()
+    
+    if update.opcua_port is not None:
+        os.environ["VISION_OPCUA_PORT"] = str(update.opcua_port)
+        # Rebuild the endpoint URL with new port
+        os.environ["VISION_OPCUA_ENDPOINT"] = f"opc.tcp://0.0.0.0:{update.opcua_port}/freeopcua/server/"
+    
+    if update.opcua_update_interval_ms is not None:
+        os.environ["VISION_OPCUA_UPDATE_INTERVAL_MS"] = str(update.opcua_update_interval_ms)
+    
+    # Update MQTT settings
+    if update.mqtt_broker is not None:
+        os.environ["VISION_MQTT_BROKER"] = update.mqtt_broker
+    
+    if update.mqtt_port is not None:
+        os.environ["VISION_MQTT_PORT"] = str(update.mqtt_port)
+    
+    if update.mqtt_topic is not None:
+        os.environ["VISION_MQTT_TOPIC"] = update.mqtt_topic
+    
+    if update.mqtt_username is not None:
+        os.environ["VISION_MQTT_USERNAME"] = update.mqtt_username
+    
+    if update.mqtt_password is not None:
+        os.environ["VISION_MQTT_PASSWORD"] = update.mqtt_password
+    
+    # Update Webhook settings
+    if update.webhook_url is not None:
+        os.environ["VISION_WEBHOOK_URL"] = update.webhook_url
+    
+    if update.webhook_headers is not None:
+        os.environ["VISION_WEBHOOK_HEADERS"] = update.webhook_headers
+    
+    return _get_integrations_status()
+
+
+@router.post("/api/v1/integrations/test/webhook")
+async def test_webhook() -> dict:
+    """Send a test message to the configured webhook."""
+    webhook_url = os.getenv("VISION_WEBHOOK_URL")
+    if not webhook_url:
+        raise HTTPException(status_code=400, detail="No webhook URL configured")
+    
+    from app.integrations.webhook import send_webhook
+    
+    test_payload = {
+        "type": "test",
+        "message": "Vision webhook test",
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+    }
+    
+    try:
+        await send_webhook(test_payload)
+        return {"ok": True, "url": webhook_url, "message": "Test sent successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Webhook test failed: {e}")
+
+
+@router.post("/api/v1/integrations/test/mqtt")
+async def test_mqtt() -> dict:
+    """Send a test message to the configured MQTT broker."""
+    mqtt_broker = os.getenv("VISION_MQTT_BROKER")
+    if not mqtt_broker:
+        raise HTTPException(status_code=400, detail="No MQTT broker configured")
+    
+    from app.integrations.mqtt_client import publish_results
+    
+    test_payload = {
+        "type": "test",
+        "message": "Vision MQTT test",
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+    }
+    
+    try:
+        await publish_results(test_payload)
+        return {
+            "ok": True, 
+            "broker": mqtt_broker,
+            "topic": os.getenv("VISION_MQTT_TOPIC", "vision/results"),
+            "message": "Test message published"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"MQTT test failed: {e}")

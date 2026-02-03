@@ -49,15 +49,17 @@ services:
       - "4840:4840" # OPC UA
 
   ui:
-    image: node:20-bookworm
-    working_dir: /app
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
     volumes:
       - ./frontend:/app
+      - /app/node_modules # Anonymous volume: prevents host from overwriting container's node_modules
+      - /app/.next # Anonymous volume: prevents .next cache issues
     environment:
       - NEXT_PUBLIC_API_BASE=http://localhost:8000
     ports:
       - "3000:3000"
-    command: bash -lc "npm install && npm run dev -- --hostname 0.0.0.0"
 
   mcp:
     build:

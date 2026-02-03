@@ -364,6 +364,229 @@ def get_system_status() -> dict:
 
 
 # ============================================================================
+# Integration Management Tools
+# ============================================================================
+
+@mcp.tool()
+def get_integrations_status() -> dict:
+    """
+    Get status of all integrations (OPC UA, MQTT, Webhook).
+    
+    Returns:
+        Status and configuration of each integration
+    """
+    logger.info("Getting integrations status")
+    try:
+        result = get_client().get_integrations()
+        
+        opcua = result.get("opcua", {})
+        mqtt = result.get("mqtt", {})
+        webhook = result.get("webhook", {})
+        
+        summary_parts = []
+        
+        # OPC UA status
+        if opcua.get("running"):
+            summary_parts.append(f"OPC UA: Running on port {opcua.get('port')}")
+        elif opcua.get("enabled"):
+            summary_parts.append("OPC UA: Enabled but not running")
+        else:
+            summary_parts.append("OPC UA: Disabled")
+        
+        # MQTT status
+        if mqtt.get("configured"):
+            summary_parts.append(f"MQTT: Configured ({mqtt.get('broker')}:{mqtt.get('port')})")
+        else:
+            summary_parts.append("MQTT: Not configured")
+        
+        # Webhook status
+        if webhook.get("configured"):
+            summary_parts.append(f"Webhook: Configured ({webhook.get('url')})")
+        else:
+            summary_parts.append("Webhook: Not configured")
+        
+        return {
+            "status": "success",
+            "message": " | ".join(summary_parts),
+            "integrations": result
+        }
+    except Exception as e:
+        logger.exception("Error getting integrations status")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def configure_opcua(
+    enabled: bool | None = None,
+    port: int | None = None,
+    update_interval_ms: int | None = None
+) -> dict:
+    """
+    Configure OPC UA server settings.
+    
+    Args:
+        enabled: Enable or disable the OPC UA server
+        port: Server port (default 4840)
+        update_interval_ms: How often to update nodes in ms (0 = immediate)
+        
+    Returns:
+        Updated integration status
+    """
+    logger.info(f"Configuring OPC UA: enabled={enabled}, port={port}, interval={update_interval_ms}")
+    try:
+        result = get_client().update_integrations(
+            opcua_enabled=enabled,
+            opcua_port=port,
+            opcua_update_interval_ms=update_interval_ms
+        )
+        
+        opcua = result.get("opcua", {})
+        running = "running" if opcua.get("running") else "stopped"
+        
+        return {
+            "status": "success",
+            "message": f"OPC UA configured: {running} on port {opcua.get('port')}",
+            "opcua": opcua
+        }
+    except Exception as e:
+        logger.exception("Error configuring OPC UA")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def configure_mqtt(
+    broker: str | None = None,
+    port: int | None = None,
+    topic: str | None = None,
+    username: str | None = None,
+    password: str | None = None
+) -> dict:
+    """
+    Configure MQTT client settings for publishing detection results.
+    
+    Args:
+        broker: MQTT broker hostname
+        port: Broker port (default 1883)
+        topic: Topic to publish results to (default 'vision/results')
+        username: Username for authentication (optional)
+        password: Password for authentication (optional)
+        
+    Returns:
+        Updated integration status
+    """
+    logger.info(f"Configuring MQTT: broker={broker}, port={port}, topic={topic}")
+    try:
+        result = get_client().update_integrations(
+            mqtt_broker=broker,
+            mqtt_port=port,
+            mqtt_topic=topic,
+            mqtt_username=username,
+            mqtt_password=password
+        )
+        
+        mqtt = result.get("mqtt", {})
+        
+        if mqtt.get("configured"):
+            msg = f"MQTT configured: {mqtt.get('broker')}:{mqtt.get('port')} topic={mqtt.get('topic')}"
+        else:
+            msg = "MQTT not configured (no broker specified)"
+        
+        return {
+            "status": "success",
+            "message": msg,
+            "mqtt": mqtt
+        }
+    except Exception as e:
+        logger.exception("Error configuring MQTT")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def configure_webhook(
+    url: str | None = None,
+    headers: str | None = None
+) -> dict:
+    """
+    Configure webhook for pushing detection results.
+    
+    Args:
+        url: Target webhook URL to POST results to
+        headers: JSON string of custom HTTP headers (optional)
+        
+    Returns:
+        Updated integration status
+        
+    Example:
+        configure_webhook(url="https://api.example.com/vision-results")
+        configure_webhook(url="https://api.example.com/results", headers='{"Authorization": "Bearer token123"}')
+    """
+    logger.info(f"Configuring webhook: url={url}")
+    try:
+        result = get_client().update_integrations(
+            webhook_url=url,
+            webhook_headers=headers
+        )
+        
+        webhook = result.get("webhook", {})
+        
+        if webhook.get("configured"):
+            msg = f"Webhook configured: {webhook.get('url')}"
+        else:
+            msg = "Webhook not configured (no URL specified)"
+        
+        return {
+            "status": "success",
+            "message": msg,
+            "webhook": webhook
+        }
+    except Exception as e:
+        logger.exception("Error configuring webhook")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def test_webhook() -> dict:
+    """
+    Send a test message to the configured webhook URL.
+    
+    Returns:
+        Test result with success or error message
+    """
+    logger.info("Testing webhook")
+    try:
+        result = get_client().test_webhook()
+        return {
+            "status": "success",
+            "message": f"Webhook test sent to {result.get('url')}",
+            "result": result
+        }
+    except Exception as e:
+        logger.exception("Webhook test failed")
+        return {"status": "error", "message": str(e)}
+
+
+@mcp.tool()
+def test_mqtt() -> dict:
+    """
+    Send a test message to the configured MQTT broker.
+    
+    Returns:
+        Test result with success or error message
+    """
+    logger.info("Testing MQTT")
+    try:
+        result = get_client().test_mqtt()
+        return {
+            "status": "success",
+            "message": f"MQTT test published to {result.get('broker')} topic {result.get('topic')}",
+            "result": result
+        }
+    except Exception as e:
+        logger.exception("MQTT test failed")
+        return {"status": "error", "message": str(e)}
+
+
+# ============================================================================
 # Resources
 # ============================================================================
 
@@ -388,9 +611,11 @@ def main():
     
     # Run with SSE transport for network access
     transport = os.getenv("MCP_TRANSPORT", "sse")
+    port = int(os.getenv("MCP_PORT", "8080"))
     
     if transport == "sse":
-        mcp.run(transport="sse")
+        logger.info(f"Starting SSE transport on port {port}")
+        mcp.run(transport="sse", port=port)
     else:
         mcp.run(transport="stdio")
 

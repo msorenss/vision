@@ -108,3 +108,66 @@ class VisionClient:
         response = self.client.get("/api/v1/settings")
         response.raise_for_status()
         return response.json()
+    
+    # ============ Integrations ============
+    
+    def get_integrations(self) -> dict[str, Any]:
+        """Get status of all integrations (OPC UA, MQTT, Webhook)."""
+        response = self.client.get("/api/v1/integrations")
+        response.raise_for_status()
+        return response.json()
+    
+    def update_integrations(
+        self,
+        opcua_enabled: bool | None = None,
+        opcua_port: int | None = None,
+        opcua_update_interval_ms: int | None = None,
+        mqtt_broker: str | None = None,
+        mqtt_port: int | None = None,
+        mqtt_topic: str | None = None,
+        mqtt_username: str | None = None,
+        mqtt_password: str | None = None,
+        webhook_url: str | None = None,
+        webhook_headers: str | None = None,
+    ) -> dict[str, Any]:
+        """Update integration settings at runtime."""
+        payload = {}
+        
+        if opcua_enabled is not None:
+            payload["opcua_enabled"] = opcua_enabled
+        if opcua_port is not None:
+            payload["opcua_port"] = opcua_port
+        if opcua_update_interval_ms is not None:
+            payload["opcua_update_interval_ms"] = opcua_update_interval_ms
+        
+        if mqtt_broker is not None:
+            payload["mqtt_broker"] = mqtt_broker
+        if mqtt_port is not None:
+            payload["mqtt_port"] = mqtt_port
+        if mqtt_topic is not None:
+            payload["mqtt_topic"] = mqtt_topic
+        if mqtt_username is not None:
+            payload["mqtt_username"] = mqtt_username
+        if mqtt_password is not None:
+            payload["mqtt_password"] = mqtt_password
+        
+        if webhook_url is not None:
+            payload["webhook_url"] = webhook_url
+        if webhook_headers is not None:
+            payload["webhook_headers"] = webhook_headers
+        
+        response = self.client.post("/api/v1/integrations", json=payload)
+        response.raise_for_status()
+        return response.json()
+    
+    def test_webhook(self) -> dict[str, Any]:
+        """Send a test message to the configured webhook."""
+        response = self.client.post("/api/v1/integrations/test/webhook")
+        response.raise_for_status()
+        return response.json()
+    
+    def test_mqtt(self) -> dict[str, Any]:
+        """Send a test message to the configured MQTT broker."""
+        response = self.client.post("/api/v1/integrations/test/mqtt")
+        response.raise_for_status()
+        return response.json()

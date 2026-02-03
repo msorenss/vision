@@ -8,6 +8,7 @@ import { LanguageSelector, LanguageDropdown } from "@/components/LanguageSelecto
 import { useTheme } from "@/components/ThemeProvider";
 import { useToast } from "@/components/Toast";
 import { ModelUpload } from "@/components/ModelUpload";
+import { IntegrationsPanel } from "@/components/IntegrationsPanel";
 
 type SettingsInfo = {
   demo_input_dir: string;
@@ -483,6 +484,11 @@ export default function SettingsPage() {
         {/* Model Upload */}
         <section style={{ marginBottom: "var(--space-6)" }}>
           <ModelUpload apiBase={apiBase} onUploadSuccess={() => void refreshRegistry()} />
+        </section>
+
+        {/* Integrations */}
+        <section style={{ marginBottom: "var(--space-6)" }}>
+          <IntegrationsPanel apiBase={apiBase} />
         </section>
 
         {/* Danger Zone */}

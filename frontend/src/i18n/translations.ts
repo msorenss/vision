@@ -61,6 +61,7 @@ export const translations = {
         'settings.backend': 'Backend',
         'settings.models': 'Modeller',
         'settings.dangerZone': 'Farozonen',
+        'settings.integrations': 'Integrationer',
 
         'settings.apiBase': 'API-adress',
         'settings.apiBasePlaceholder': 'http://localhost:8000',
@@ -223,6 +224,7 @@ export const translations = {
         'settings.backend': 'Backend',
         'settings.models': 'Models',
         'settings.dangerZone': 'Danger Zone',
+        'settings.integrations': 'Integrations',
 
         'settings.apiBase': 'API Base URL',
         'settings.apiBasePlaceholder': 'http://localhost:8000',

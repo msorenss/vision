@@ -135,3 +135,63 @@ class ModelUploadResponse(BaseModel):
     path: str
     labels_count: int
 
+
+# ============ Integrations ============
+
+class OpcUaStatus(BaseModel):
+    """OPC UA server status and configuration."""
+    
+    available: bool = Field(description="True if asyncua library is installed")
+    enabled: bool = Field(description="True if server is enabled")
+    running: bool = Field(description="True if server is currently running")
+    endpoint: str | None = Field(default=None, description="OPC UA endpoint URL")
+    port: int = Field(default=4840, description="Server port")
+    namespace: str = Field(default="http://volvocars.com/vision", description="OPC UA namespace")
+    update_interval_ms: int = Field(default=0, description="Update interval in ms (0 = immediate)")
+
+
+class MqttStatus(BaseModel):
+    """MQTT client status and configuration."""
+    
+    available: bool = Field(description="True if aiomqtt library is installed")
+    configured: bool = Field(description="True if broker is configured")
+    broker: str | None = Field(default=None, description="MQTT broker hostname")
+    port: int = Field(default=1883, description="Broker port")
+    topic: str = Field(default="vision/results", description="Publish topic")
+    username: str | None = Field(default=None, description="Username (if configured)")
+
+
+class WebhookStatus(BaseModel):
+    """Webhook status and configuration."""
+    
+    configured: bool = Field(description="True if URL is configured")
+    url: str | None = Field(default=None, description="Target webhook URL")
+    has_custom_headers: bool = Field(default=False, description="True if custom headers set")
+
+
+class IntegrationsStatus(BaseModel):
+    """Status of all integrations."""
+    
+    opcua: OpcUaStatus
+    mqtt: MqttStatus
+    webhook: WebhookStatus
+
+
+class IntegrationsUpdate(BaseModel):
+    """Request to update integration settings. All fields are optional."""
+    
+    # OPC UA
+    opcua_enabled: bool | None = None
+    opcua_port: int | None = Field(default=None, ge=1, le=65535)
+    opcua_update_interval_ms: int | None = Field(default=None, ge=0)
+    
+    # MQTT
+    mqtt_broker: str | None = None
+    mqtt_port: int | None = Field(default=None, ge=1, le=65535)
+    mqtt_topic: str | None = None
+    mqtt_username: str | None = None
+    mqtt_password: str | None = None
+    
+    # Webhook
+    webhook_url: str | None = None
+    webhook_headers: str | None = Field(default=None, description="JSON string of headers")
