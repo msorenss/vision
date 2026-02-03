@@ -58,3 +58,14 @@ services:
     ports:
       - "3000:3000"
     command: bash -lc "npm install && npm run dev -- --hostname 0.0.0.0"
+
+  mcp:
+    build:
+      context: ./mcp-server
+    depends_on:
+      - runner
+    environment:
+      - VISION_API_URL=http://runner:8000
+      - MCP_TRANSPORT=sse
+    ports:
+      - "8080:8080"

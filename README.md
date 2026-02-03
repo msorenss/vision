@@ -61,8 +61,9 @@ docker compose up -d
 ```
 
 Open:
-- **UI**: http://localhost:3000
-- **API**: http://localhost:8000/docs
+
+- **UI**: <http://localhost:3000>
+- **API**: <http://localhost:8000/docs>
 
 ## Volume Mappings
 
@@ -129,6 +130,7 @@ services:
 ```
 
 **Flow:**
+
 1. Drop image into `./inbox/`
 2. Detection runs automatically
 3. JSON results saved to `./results/`
@@ -183,6 +185,45 @@ curl -X POST http://localhost:8000/api/v1/infer -F "image=@photo.jpg"
 |-----|-------------|
 | `latest` | Most recent stable build |
 | `1.2.0` | Current version (recommended) |
+
+## MCP Server (AI Assistant Integration)
+
+The MCP (Model Context Protocol) server allows AI assistants to use Vision for image analysis.
+
+### Available Tools
+
+| Tool | Description |
+|------|-------------|
+| `analyze_image` | Analyze image from URL |
+| `analyze_image_base64` | Analyze base64-encoded image |
+| `analyze_with_filter` | Analyze with detection filter |
+| `list_filters` / `create_filter` | Manage detection filters |
+| `list_models` / `activate_model` | Model management |
+| `get_system_status` | System health check |
+
+### Usage with Open-WebUI
+
+Add the MCP service to your docker-compose:
+
+```yaml
+  mcp:
+    build:
+      context: ./mcp-server
+    depends_on:
+      - runner
+    environment:
+      - VISION_API_URL=http://runner:8000
+    ports:
+      - "8080:8080"
+```
+
+Configure Open-WebUI to connect to `http://vision-mcp:8080/sse`
+
+Example prompts:
+
+- "Analyze this image: <https://example.com/photo.jpg>"
+- "Create a filter that only detects vehicles"
+- "What's the system status?"
 
 ## Support
 
