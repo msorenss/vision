@@ -1,0 +1,36 @@
+FROM python:3.11-slim
+
+# Detect architecture for any arch-specific handling
+ARG TARGETARCH
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# System deps - libheif may not be available on all arm64 distros
+# We make pillow-heif optional to avoid build failures on Pi
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libjpeg62-turbo \
+        zlib1g \
+    && if [ "$TARGETARCH" = "amd64" ]; then \
+        apt-get install -y --no-install-recommends libheif1 || true; \
+    else \
+        apt-get install -y --no-install-recommends libheif1 || echo "libheif not available on $TARGETARCH, HEIC support disabled"; \
+    fi \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt /app/requirements.txt
+
+# Install Python deps - pillow-heif is optional on arm64
+RUN pip install --no-cache-dir -r /app/requirements.txt || \
+    (echo "Retrying without pillow-heif..." && \
+     grep -v pillow-heif /app/requirements.txt > /tmp/req.txt && \
+     pip install --no-cache-dir -r /tmp/req.txt)
+
+COPY app /app/app
+
+EXPOSE 8000
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

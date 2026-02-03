@@ -1,0 +1,17 @@
+services:
+  builder:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.builder
+    environment:
+      # Generate a standard bundle into /models/standard/yolov8n/v1 if missing.
+      - VISION_BOOTSTRAP=1
+      - VISION_MODEL_PATH=/models/standard/yolov8n/v1/model.onnx
+      # Optional: pick model + size
+      - VISION_BOOTSTRAP_MODEL=yolov8n.pt
+      - VISION_BOOTSTRAP_IMGSZ=640
+      - VISION_BOOTSTRAP_OPSET=20
+    volumes:
+      - ./models:/models
+    ports:
+      - "8001:8000"

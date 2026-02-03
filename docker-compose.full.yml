@@ -1,0 +1,60 @@
+services:
+  modelprep:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.builder
+    environment:
+      - VISION_BOOTSTRAP=1
+      - VISION_MODEL_PATH=/models/demo/v1/model.onnx
+      - VISION_BOOTSTRAP_MODEL=yolov8n.pt
+      - VISION_BOOTSTRAP_IMGSZ=640
+      - VISION_BOOTSTRAP_OPSET=20
+    volumes:
+      - ./models:/models
+    command: python -c "from app.bootstrap import bootstrap_model_if_needed; bootstrap_model_if_needed()"
+
+  runner:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.runner
+    depends_on:
+      modelprep:
+        condition: service_completed_successfully
+    environment:
+      - VISION_MODEL_PATH=/models/demo/v1/model.onnx
+      - VISION_WATCH=1
+      - VISION_WATCH_INPUT=/input
+      - VISION_WATCH_OUTPUT=/output
+      - VISION_WATCH_PROCESSED=${VISION_WATCH_PROCESSED:-}
+      - VISION_WATCH_MODE=${VISION_WATCH_MODE:-json}
+      # Optional: persist uploaded images into /input/_uploads
+      - VISION_SAVE_UPLOADS=${VISION_SAVE_UPLOADS:-0}
+      - VISION_SAVE_UPLOADS_SUBDIR=${VISION_SAVE_UPLOADS_SUBDIR:-_uploads}
+      # Optional: allow POST /api/v1/demo/clear (DANGEROUS if /input points to OneDrive/Desktop)
+      - VISION_DEMO_ALLOW_MUTATIONS=${VISION_DEMO_ALLOW_MUTATIONS:-0}
+      # Optional: allow UI settings page to update backend settings at runtime
+      - VISION_ALLOW_RUNTIME_SETTINGS=${VISION_ALLOW_RUNTIME_SETTINGS:-1}
+
+      # Integrations
+      - VISION_WEBHOOK_URL=${VISION_WEBHOOK_URL:-}
+      - VISION_MQTT_BROKER=${VISION_MQTT_BROKER:-}
+      - VISION_MQTT_TOPIC=${VISION_MQTT_TOPIC:-vision/results}
+      - VISION_OPCUA_ENABLE=${VISION_OPCUA_ENABLE:-0}
+    volumes:
+      - ./models:/models
+      - ${VISION_INPUT_HOST_PATH:-./input}:/input
+      - ${VISION_OUTPUT_HOST_PATH:-./output}:/output
+    ports:
+      - "8000:8000"
+      - "4840:4840" # OPC UA
+
+  ui:
+    image: node:20-bookworm
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+    environment:
+      - NEXT_PUBLIC_API_BASE=http://localhost:8000
+    ports:
+      - "3000:3000"
+    command: bash -lc "npm install && npm run dev -- --hostname 0.0.0.0"

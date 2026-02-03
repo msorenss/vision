@@ -1,0 +1,14 @@
+# Python
+**/__pycache__/
+**/*.pyc
+
+# Node
+**/node_modules/
+**/.next/
+
+# Env
+.env
+.env.*
+
+# Local model artifacts (keep if you want to commit them)
+# models/

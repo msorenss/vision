@@ -1,0 +1,46 @@
+services:
+  modelprep:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.builder
+    environment:
+      - VISION_BOOTSTRAP=1
+      - VISION_MODEL_PATH=/models/demo/v1/model.onnx
+      - VISION_BOOTSTRAP_MODEL=yolov8n.pt
+      - VISION_BOOTSTRAP_IMGSZ=640
+      - VISION_BOOTSTRAP_OPSET=20
+    volumes:
+      - ./models:/models
+    command: python -c "from app.bootstrap import bootstrap_model_if_needed; bootstrap_model_if_needed()"
+
+  runner:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.runner
+    depends_on:
+      modelprep:
+        condition: service_completed_successfully
+    environment:
+      # Put bundles in /models/<name>/<version>/
+      - VISION_MODEL_PATH=/models/demo/v1/model.onnx
+      # Optional: watch a folder and write JSON results.
+      - VISION_WATCH=1
+      - VISION_WATCH_INPUT=/input
+      - VISION_WATCH_OUTPUT=/output
+      # Optional: persist uploaded images into /input/_uploads
+      - VISION_SAVE_UPLOADS=${VISION_SAVE_UPLOADS:-0}
+      - VISION_SAVE_UPLOADS_SUBDIR=${VISION_SAVE_UPLOADS_SUBDIR:-_uploads}
+      # Optional: allow POST /api/v1/demo/clear (DANGEROUS if /input points to OneDrive/Desktop)
+      - VISION_DEMO_ALLOW_MUTATIONS=${VISION_DEMO_ALLOW_MUTATIONS:-0}
+      # Optional: allow UI settings page to update backend settings at runtime
+      - VISION_ALLOW_RUNTIME_SETTINGS=${VISION_ALLOW_RUNTIME_SETTINGS:-0}
+      # Optional: bootstrap a standard model if model.onnx is missing.
+      # Recommended: provide a prebuilt bundle zip URL.
+      # - VISION_BOOTSTRAP=1
+      # - VISION_BOOTSTRAP_BUNDLE_URL=https://.../model-bundle.zip
+    volumes:
+      - ./models:/models
+      - ${VISION_INPUT_HOST_PATH:-./input}:/input
+      - ${VISION_OUTPUT_HOST_PATH:-./output}:/output
+    ports:
+      - "8000:8000"

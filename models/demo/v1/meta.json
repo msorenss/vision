@@ -1,0 +1,13 @@
+{
+  "input_size": [
+    640,
+    640
+  ],
+  "export": {
+    "format": "onnx",
+    "nms": true,
+    "opset": 21
+  },
+  "source_model": "yolov8n.pt",
+  "bootstrap": true
+}

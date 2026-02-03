@@ -1,0 +1,9 @@
+fastapi==0.115.6
+uvicorn[standard]==0.30.6
+python-multipart==0.0.9
+pillow==10.4.0
+numpy==2.1.3
+watchfiles==0.24.0
+
+# OpenVINO Execution Provider build of ONNX Runtime
+onnxruntime-openvino

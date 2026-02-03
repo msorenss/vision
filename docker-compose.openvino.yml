@@ -1,0 +1,22 @@
+# Optional override: use OpenVINO Execution Provider on Intel hardware.
+# Usage:
+#   docker compose -f docker-compose.full.yml -f docker-compose.openvino.yml up --build
+# or runner-only:
+#   docker compose -f docker-compose.runner.yml -f docker-compose.openvino.yml up --build
+
+services:
+  runner:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.runner.openvino
+    environment:
+      - VISION_ORT_PROVIDERS=OpenVINOExecutionProvider,CPUExecutionProvider
+      - VISION_OPENVINO_DEVICE_TYPE=CPU
+      # Optional caching (speeds up restarts):
+      # - VISION_OPENVINO_CACHE_DIR=/models/.openvino_cache
+
+  modelprep:
+    # modelprep can stay on the builder image; it only needs to export an ONNX file.
+    # If you want OpenVINO EP for model validation too, you could also switch it.
+    environment:
+      - VISION_ORT_PROVIDERS=CPUExecutionProvider
