@@ -1,0 +1,122 @@
+/* settings.module.css - Settings page specific styles */
+
+/* Header */
+.logoText {
+    color: var(--color-primary);
+    -webkit-text-fill-color: var(--color-primary);
+}
+
+/* Main content */
+.mainContent {
+    padding-top: var(--space-8);
+}
+
+/* Page header */
+.pageHeader {
+    margin-bottom: var(--space-8);
+}
+
+.pageTitle {
+    margin-bottom: var(--space-2);
+}
+
+/* Section styling */
+.section {
+    margin-bottom: var(--space-6);
+}
+
+.sectionAnimated100 {
+    margin-bottom: var(--space-6);
+    animation-delay: 100ms;
+}
+
+.sectionAnimated200 {
+    margin-bottom: var(--space-6);
+    animation-delay: 200ms;
+}
+
+.sectionAnimated300 {
+    margin-bottom: var(--space-6);
+    animation-delay: 300ms;
+}
+
+.sectionHeader {
+    margin-bottom: var(--space-4);
+}
+
+.sectionTitle {
+    margin: 0;
+}
+
+/* Grid with gap */
+.gridWithGap {
+    gap: var(--space-6);
+}
+
+/* Stats box */
+.statsBox {
+    margin-bottom: var(--space-6);
+    padding: var(--space-4);
+    background: var(--color-bg-tertiary);
+    border-radius: var(--radius-lg);
+}
+
+.statPrimary {
+    color: var(--color-primary);
+}
+
+.statAccent {
+    color: var(--color-accent);
+}
+
+/* Form elements */
+.inputSmall {
+    max-width: 200px;
+}
+
+.formActions {
+    margin-top: var(--space-2);
+}
+
+/* Code block */
+.codeBlock {
+    margin: 0;
+    padding: var(--space-4);
+    background: var(--color-bg-tertiary);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    overflow-x: auto;
+}
+
+/* Model registry */
+.modelsInfo {
+    margin-bottom: var(--space-4);
+}
+
+.emptyModels {
+    padding: var(--space-8);
+}
+
+.modelItem {
+    margin-bottom: var(--space-2);
+}
+
+.modelItemSmall {
+    margin-bottom: var(--space-3);
+}
+
+/* Danger zone */
+.dangerSection {
+    margin-bottom: var(--space-6);
+    animation-delay: 300ms;
+    border-color: var(--color-error);
+}
+
+.dangerTitle {
+    color: var(--color-error);
+    margin-bottom: var(--space-4);
+}
+
+.dangerNote {
+    margin-top: var(--space-2);
+}

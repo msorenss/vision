@@ -9,3 +9,8 @@ watchfiles==0.24.0
 aiohttp==3.10.5
 aiomqtt==2.0.1
 asyncua==1.1.0
+
+# P10: Training Pipeline (optional - install for training support)
+# ultralytics>=8.2.0
+# openvino>=2024.0.0
+

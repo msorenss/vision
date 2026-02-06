@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslation } from "@/components/I18nProvider";
+import styles from "./IntegrationsPanel.module.css";
 
 type OpcUaStatus = {
     available: boolean;
@@ -173,28 +174,22 @@ export function IntegrationsPanel({ apiBase, onUpdate }: IntegrationsPanelProps)
     const TabButton = ({ id, label, icon }: { id: typeof activeTab, label: string, icon: string }) => (
         <button
             onClick={() => setActiveTab(id)}
-            className={`btn btn-sm ${activeTab === id ? 'btn-neutral' : 'btn-ghost'}`}
-            style={{ borderRadius: "var(--radius-md)" }}
+            className={`btn btn-sm ${activeTab === id ? 'btn-neutral' : 'btn-ghost'} ${styles.tabButton}`}
         >
             {icon} {label}
         </button>
     );
 
     return (
-        <section className="card animate-fade-in" style={{ animationDelay: "150ms" }}>
-            <div className="flex justify-between items-center" style={{ marginBottom: "var(--space-4)" }}>
-                <h2 style={{ margin: 0 }}>🏭 Industrial Integrations</h2>
+        <section className={`card animate-fade-in ${styles.panel}`}>
+            <div className={`flex justify-between items-center ${styles.header}`}>
+                <h2 className={styles.headerTitle}>🏭 Industrial Integrations</h2>
                 <button onClick={() => void refreshIntegrations()} disabled={busy} className="btn btn-secondary btn-sm">
                     {t("settings.refresh")}
                 </button>
             </div>
 
-            {/* Tabs */}
-            <div className="flex gap-2 p-1 bg-base-200 rounded-lg" style={{
-                marginBottom: "var(--space-4)",
-                background: "var(--color-bg-secondary)",
-                padding: "var(--space-1)"
-            }}>
+            <div className={`flex gap-2 p-1 bg-base-200 rounded-lg ${styles.tabBar}`}>
                 <TabButton id="opcua" label="OPC UA" icon="🔌" />
                 <TabButton id="mqtt" label="MQTT" icon="📡" />
                 <TabButton id="webhook" label="Webhook" icon="🔗" />
@@ -217,9 +212,7 @@ export function IntegrationsPanel({ apiBase, onUpdate }: IntegrationsPanelProps)
                     {/* OPC UA Tab */}
                     {activeTab === "opcua" && (
                         <div className="flex flex-col gap-4">
-                            <div className="p-4 border rounded-lg bg-base-100" style={{
-                                borderColor: integrations.opcua.running ? "var(--color-success)" : "var(--color-border)"
-                            }}>
+                            <div className={`p-4 border rounded-lg bg-base-100 ${integrations.opcua.running ? styles.statusBoxRunning : styles.statusBox}`}>
                                 <div className="flex justify-between items-center mb-4">
                                     <div className="flex items-center gap-2">
                                         <span className="font-bold">OPC UA Status</span>
@@ -249,8 +242,9 @@ export function IntegrationsPanel({ apiBase, onUpdate }: IntegrationsPanelProps)
                                     </label>
 
                                     <div>
-                                        <label className="label text-sm font-medium">Port</label>
+                                        <label htmlFor="opcua-port" className="label text-sm font-medium">Port</label>
                                         <input
+                                            id="opcua-port"
                                             type="number"
                                             className="input input-sm w-full"
                                             value={opcuaPort}
@@ -259,8 +253,9 @@ export function IntegrationsPanel({ apiBase, onUpdate }: IntegrationsPanelProps)
                                     </div>
 
                                     <div>
-                                        <label className="label text-sm font-medium">Update Interval (ms)</label>
+                                        <label htmlFor="opcua-interval" className="label text-sm font-medium">Update Interval (ms)</label>
                                         <input
+                                            id="opcua-interval"
                                             type="number"
                                             className="input input-sm w-full"
                                             value={opcuaInterval}
@@ -334,8 +329,9 @@ export function IntegrationsPanel({ apiBase, onUpdate }: IntegrationsPanelProps)
                                             />
                                         </div>
                                         <div>
-                                            <label className="label text-sm">Port</label>
+                                            <label htmlFor="mqtt-port" className="label text-sm">Port</label>
                                             <input
+                                                id="mqtt-port"
                                                 type="number"
                                                 className="input input-sm w-full"
                                                 value={mqttPort}
@@ -343,8 +339,9 @@ export function IntegrationsPanel({ apiBase, onUpdate }: IntegrationsPanelProps)
                                             />
                                         </div>
                                         <div>
-                                            <label className="label text-sm">Username</label>
+                                            <label htmlFor="mqtt-username" className="label text-sm">Username</label>
                                             <input
+                                                id="mqtt-username"
                                                 type="text"
                                                 className="input input-sm w-full"
                                                 value={mqttUsername}
@@ -352,8 +349,9 @@ export function IntegrationsPanel({ apiBase, onUpdate }: IntegrationsPanelProps)
                                             />
                                         </div>
                                         <div>
-                                            <label className="label text-sm">Password</label>
+                                            <label htmlFor="mqtt-password" className="label text-sm">Password</label>
                                             <input
+                                                id="mqtt-password"
                                                 type="password"
                                                 className="input input-sm w-full"
                                                 value={mqttPassword}

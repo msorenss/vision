@@ -1,0 +1,180 @@
+/* page.module.css - Home page specific styles */
+
+/* Header styles */
+.logoIcon {
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.logoText {
+    color: var(--color-primary);
+    -webkit-text-fill-color: var(--color-primary);
+}
+
+.statusWrapper {
+    margin-right: var(--space-2);
+}
+
+/* Main content */
+.mainContent {
+    padding-top: var(--space-8);
+}
+
+/* Upload section */
+.uploadSection {
+    margin-bottom: var(--space-8);
+}
+
+.hiddenInput {
+    display: none;
+}
+
+.dropzoneText {
+    text-align: center;
+}
+
+.dropzoneTitle {
+    margin: 0;
+    font-weight: 500;
+}
+
+.dropzoneSubtitle {
+    margin: var(--space-2) 0 0;
+}
+
+.fileBadge {
+    margin-top: var(--space-2);
+}
+
+/* Demo section */
+.sectionTitle {
+    margin-bottom: var(--space-4);
+}
+
+.formGroup {
+    margin-bottom: var(--space-4);
+}
+
+.selectFlex {
+    flex: 1;
+}
+
+.helperText {
+    margin-top: var(--space-2);
+    display: block;
+}
+
+.filterWrapper {
+    margin-bottom: var(--space-2);
+}
+
+/* Error display */
+.errorCard {
+    margin-bottom: var(--space-6);
+    background: var(--color-error-bg);
+    border-color: var(--color-error);
+}
+
+.errorText {
+    margin: 0;
+    color: var(--color-error);
+}
+
+/* Preview card */
+.previewCard {
+    padding: 0;
+    overflow: hidden;
+}
+
+.previewHeader {
+    padding: var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.previewHeaderTitle {
+    margin: 0;
+}
+
+.previewContainer {
+    position: relative;
+    min-height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-4);
+    overflow: auto;
+    background: var(--color-bg-tertiary);
+}
+
+.zoomText {
+    min-width: 3rem;
+    text-align: center;
+}
+
+.previewImage {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    border-radius: var(--radius-md);
+}
+
+.previewCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    border-radius: var(--radius-md);
+}
+
+.loadingOverlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Empty state */
+.emptyState {
+    padding: var(--space-8) 0;
+}
+
+.emptyIcon {
+    font-size: 3rem;
+    margin-bottom: var(--space-2);
+}
+
+.emptyIconSmall {
+    font-size: 2rem;
+    margin-bottom: var(--space-2);
+}
+
+/* Results section */
+.resultsBadge {
+    margin-left: var(--space-2);
+}
+
+.resultsInfo {
+    margin-bottom: var(--space-4);
+}
+
+.detectionItem {
+    padding: var(--space-3);
+    background: var(--color-bg-tertiary);
+    border-radius: var(--radius-md);
+}
+
+.progressSmall {
+    margin-top: var(--space-2);
+    height: 4px;
+}
+
+/* Additional utility classes */
+.imageWrapper {
+    position: relative;
+    transform-origin: center;
+}

@@ -42,6 +42,7 @@ services:
       - VISION_OPCUA_ENABLE=${VISION_OPCUA_ENABLE:-1}
     volumes:
       - ./models:/models
+      - ./datasets:/datasets
       - ${VISION_INPUT_HOST_PATH:-./input}:/input
       - ${VISION_OUTPUT_HOST_PATH:-./output}:/output
     ports:

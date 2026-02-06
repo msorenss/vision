@@ -9,6 +9,7 @@ import { LanguageSelector } from "@/components/LanguageSelector";
 import { useToast } from "@/components/Toast";
 import { FilterSelector } from "@/components/FilterSelector";
 import { WatcherStatusCard } from "@/components/WatcherStatus";
+import styles from "./page.module.css";
 
 type Detection = {
   class_id: number;
@@ -312,19 +313,21 @@ export default function HomePage() {
       <header className="header">
         <div className="header-logo">
           {/* Logo */}
-          <span style={{ fontSize: "1.5rem", lineHeight: 1 }}>👁️</span>
-          <span style={{ color: 'var(--color-primary)', WebkitTextFillColor: 'var(--color-primary)' }}>
+          <span className={styles.logoIcon}>👁️</span>
+          <span className={styles.logoText}>
             Vision System
           </span>
         </div>
 
         <nav className="header-nav">
           <Link href="/" className="btn btn-ghost">{t("nav.home")}</Link>
+          <Link href="/datasets" className="btn btn-ghost">Datasets</Link>
+          <Link href="/training" className="btn btn-ghost">Training</Link>
           <Link href="/settings" className="btn btn-ghost">{t("nav.settings")}</Link>
         </nav>
 
         <div className="header-controls">
-          <div className="flex items-center gap-2" style={{ marginRight: "var(--space-2)" }}>
+          <div className={`flex items-center gap-2 ${styles.statusWrapper}`}>
             <span
               className={`status-dot ${health?.ok ? "status-dot-ok" : "status-dot-error"}`}
               title={health?.ok ? t("status.connected") : t("status.disconnected")}
@@ -339,9 +342,9 @@ export default function HomePage() {
       </header>
 
       {/* Main Content */}
-      <main className="container" style={{ paddingTop: "var(--space-8)" }}>
+      <main className={`container ${styles.mainContent}`}>
         {/* Upload Section */}
-        <div className="grid-2" style={{ marginBottom: "var(--space-8)" }}>
+        <div className={`grid-2 ${styles.uploadSection}`}>
           {/* Drop Zone */}
           <div
             className={`drop-zone ${isDragActive ? "active" : ""}`}
@@ -356,21 +359,22 @@ export default function HomePage() {
               type="file"
               accept="image/*"
               onChange={handleFileSelect}
-              style={{ display: "none" }}
+              className={styles.hiddenInput}
+              aria-label="Upload image file"
             />
             <div className="drop-zone-icon">📷</div>
-            <div style={{ textAlign: "center" }}>
-              <p style={{ margin: 0, fontWeight: 500 }}>
+            <div className={styles.dropzoneText}>
+              <p className={styles.dropzoneTitle}>
                 {isDragActive ? t("upload.dragActive") : t("upload.dropHere")}
               </p>
-              <p className="text-sm text-muted" style={{ margin: "var(--space-2) 0 0" }}>
+              <p className={`text-sm text-muted ${styles.dropzoneSubtitle}`}>
                 {t("upload.orClick")}
               </p>
             </div>
             <span className="text-xs text-muted">{t("upload.supportedFormats")}</span>
 
             {file && (
-              <div className="badge badge-primary" style={{ marginTop: "var(--space-2)" }}>
+              <div className={`badge badge-primary ${styles.fileBadge}`}>
                 {file.name}
               </div>
             )}
@@ -378,18 +382,18 @@ export default function HomePage() {
 
           {/* Demo Files & Actions */}
           <div className="card animate-fade-in">
-            <h3 style={{ marginBottom: "var(--space-4)" }}>{t("demo.title")}</h3>
+            <h3 className={styles.sectionTitle}>{t("demo.title")}</h3>
 
-            <div style={{ marginBottom: "var(--space-4)" }}>
-              <label className="label">{t("demo.selectFile")}</label>
+            <div className={styles.formGroup}>
+              <label htmlFor="demo-file-select" className="label">{t("demo.selectFile")}</label>
               <div className="flex gap-2">
                 <select
+                  id="demo-file-select"
                   value={selectedDemo}
                   onChange={(e: ChangeEvent<HTMLSelectElement>) =>
                     setSelectedDemo(e.target.value)
                   }
-                  className="input select"
-                  style={{ flex: 1 }}
+                  className={`input select ${styles.selectFlex}`}
                 >
                   <option value="">{t("demo.noFiles")}</option>
                   {demoFiles.map((f: string) => (
@@ -408,7 +412,7 @@ export default function HomePage() {
                 </button>
               </div>
               {demoFiles.length > 0 && (
-                <span className="text-xs text-muted" style={{ marginTop: "var(--space-2)", display: "block" }}>
+                <span className={`text-xs text-muted ${styles.helperText}`}>
                   {t("demo.fileCount", { count: demoFiles.length })}
                 </span>
               )}
@@ -416,7 +420,7 @@ export default function HomePage() {
 
             <div className="flex flex-col gap-2">
               {/* Filter Selector */}
-              <div style={{ marginBottom: "var(--space-2)" }}>
+              <div className={styles.filterWrapper}>
                 <FilterSelector
                   apiBase={apiBase}
                   selectedFilter={activeFilter}
@@ -453,32 +457,17 @@ export default function HomePage() {
 
         {/* Error Display */}
         {error && (
-          <div
-            className="card animate-slide-up"
-            style={{
-              marginBottom: "var(--space-6)",
-              background: "var(--color-error-bg)",
-              borderColor: "var(--color-error)"
-            }}
-          >
-            <p style={{ margin: 0, color: "var(--color-error)" }}>{error}</p>
+          <div className={`card animate-slide-up ${styles.errorCard}`}>
+            <p className={styles.errorText}>{error}</p>
           </div>
         )}
 
         {/* Preview & Results */}
         <div className="grid-2">
           {/* Image Preview */}
-          <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-            <div
-              style={{
-                padding: "var(--space-4)",
-                borderBottom: "1px solid var(--color-border)",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center"
-              }}
-            >
-              <h3 style={{ margin: 0 }}>{t("preview.title")}</h3>
+          <div className={`card ${styles.previewCard}`}>
+            <div className={styles.previewHeader}>
+              <h3 className={styles.previewHeaderTitle}>{t("preview.title")}</h3>
               {imageUrl && (
                 <div className="flex gap-2">
                   <button
@@ -495,7 +484,7 @@ export default function HomePage() {
                   >
                     −
                   </button>
-                  <span className="text-sm text-muted" style={{ minWidth: "3rem", textAlign: "center" }}>
+                  <span className={`text-sm text-muted ${styles.zoomText}`}>
                     {Math.round(zoom * 100)}%
                   </span>
                   <button
@@ -509,18 +498,7 @@ export default function HomePage() {
               )}
             </div>
 
-            <div
-              style={{
-                position: "relative",
-                minHeight: "300px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "var(--space-4)",
-                overflow: "auto",
-                background: "var(--color-bg-tertiary)"
-              }}
-            >
+            <div className={styles.previewContainer}>
               {imageUrl ? (
                 <div style={{ position: "relative", transform: `scale(${zoom})`, transformOrigin: "center" }}>
                   <img
@@ -548,22 +526,13 @@ export default function HomePage() {
                 </div>
               ) : (
                 <div className="text-center text-muted">
-                  <div style={{ fontSize: "3rem", marginBottom: "var(--space-2)" }}>🖼️</div>
+                  <div className={styles.emptyIcon}>🖼️</div>
                   <p>{t("preview.noImage")}</p>
                 </div>
               )}
 
               {busy && (
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    background: "rgba(0,0,0,0.5)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center"
-                  }}
-                >
+                <div className={styles.loadingOverlay}>
                   <div className="spinner spinner-lg" />
                 </div>
               )}
@@ -583,7 +552,7 @@ export default function HomePage() {
 
             {result ? (
               <>
-                <div className="text-sm text-muted" style={{ marginBottom: "var(--space-4)" }}>
+                <div className={`text-sm text-muted ${styles.resultsInfo}`}>
                   Model: <code>{result.model_path?.split("/").pop() ?? "—"}</code>
                 </div>
 
@@ -613,7 +582,7 @@ export default function HomePage() {
                             {(det.score * 100).toFixed(1)}%
                           </span>
                         </div>
-                        <div className="progress" style={{ marginTop: "var(--space-2)", height: "4px" }}>
+                        <div className={`progress ${styles.progressSmall}`}>
                           <div
                             className="progress-bar"
                             style={{
@@ -626,15 +595,15 @@ export default function HomePage() {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center text-muted" style={{ padding: "var(--space-8) 0" }}>
-                    <div style={{ fontSize: "2rem", marginBottom: "var(--space-2)" }}>🔍</div>
+                  <div className={`text-center text-muted ${styles.emptyState}`}>
+                    <div className={styles.emptyIconSmall}>🔍</div>
                     <p>{t("results.noDetections")}</p>
                   </div>
                 )}
               </>
             ) : (
-              <div className="text-center text-muted" style={{ padding: "var(--space-8) 0" }}>
-                <div style={{ fontSize: "2rem", marginBottom: "var(--space-2)" }}>✨</div>
+              <div className={`text-center text-muted ${styles.emptyState}`}>
+                <div className={styles.emptyIconSmall}>✨</div>
                 <p>{t("results.noResults")}</p>
               </div>
             )}

@@ -1,0 +1,31 @@
+/* IntegrationsPanel.module.css */
+
+.panel {
+    animation-delay: 150ms;
+}
+
+.header {
+    margin-bottom: var(--space-4);
+}
+
+.headerTitle {
+    margin: 0;
+}
+
+.tabBar {
+    margin-bottom: var(--space-4);
+    background: var(--color-bg-secondary);
+    padding: var(--space-1);
+}
+
+.tabButton {
+    border-radius: var(--radius-md);
+}
+
+.statusBox {
+    border-color: var(--color-border);
+}
+
+.statusBoxRunning {
+    border-color: var(--color-success);
+}

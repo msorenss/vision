@@ -9,6 +9,7 @@ import { useTheme } from "@/components/ThemeProvider";
 import { useToast } from "@/components/Toast";
 import { ModelUpload } from "@/components/ModelUpload";
 import { IntegrationsPanel } from "@/components/IntegrationsPanel";
+import styles from "./settings.module.css";
 
 type SettingsInfo = {
   demo_input_dir: string;
@@ -235,7 +236,7 @@ export default function SettingsPage() {
             <circle cx="16" cy="16" r="14" stroke="currentColor" strokeWidth="2.5" fill="none" />
             <path d="M8 16h16M22 10l-6 6 6 6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
           </svg>
-          <span style={{ color: 'var(--color-primary)', WebkitTextFillColor: 'var(--color-primary)' }}>
+          <span className={styles.logoText}>
             Volvo Cars Vision
           </span>
         </div>
@@ -251,17 +252,17 @@ export default function SettingsPage() {
         </div>
       </header>
 
-      <main className="container" style={{ paddingTop: "var(--space-8)" }}>
-        <div style={{ marginBottom: "var(--space-8)" }}>
-          <h1 style={{ marginBottom: "var(--space-2)" }}>{t("settings.title")}</h1>
+      <main className={`container ${styles.mainContent}`}>
+        <div className={styles.pageHeader}>
+          <h1 className={styles.pageTitle}>{t("settings.title")}</h1>
           <p className="text-muted">{t("settings.savedInBrowser")}</p>
         </div>
 
         {/* UI Settings */}
-        <section className="card animate-fade-in" style={{ marginBottom: "var(--space-6)" }}>
-          <h2 style={{ marginBottom: "var(--space-4)" }}>{t("settings.ui")}</h2>
+        <section className={`card animate-fade-in ${styles.section}`}>
+          <h2 className={styles.sectionHeader}>{t("settings.ui")}</h2>
 
-          <div className="grid-2" style={{ gap: "var(--space-6)" }}>
+          <div className={`grid-2 ${styles.gridWithGap}`}>
             {/* API Base */}
             <div>
               <label className="label">{t("settings.apiBase")}</label>
@@ -312,9 +313,9 @@ export default function SettingsPage() {
         </section>
 
         {/* Backend Settings */}
-        <section className="card animate-fade-in" style={{ marginBottom: "var(--space-6)", animationDelay: "100ms" }}>
-          <div className="flex justify-between items-center" style={{ marginBottom: "var(--space-4)" }}>
-            <h2 style={{ margin: 0 }}>{t("settings.backend")}</h2>
+        <section className={`card animate-fade-in ${styles.sectionAnimated100}`}>
+          <div className={`flex justify-between items-center ${styles.sectionHeader}`}>
+            <h2 className={styles.sectionTitle}>{t("settings.backend")}</h2>
             <button onClick={() => void refreshBackend()} disabled={busy} className="btn btn-secondary">
               {t("settings.refresh")}
             </button>
@@ -323,23 +324,15 @@ export default function SettingsPage() {
           {backend && (
             <>
               {/* Stats */}
-              <div
-                className="grid-3"
-                style={{
-                  marginBottom: "var(--space-6)",
-                  padding: "var(--space-4)",
-                  background: "var(--color-bg-tertiary)",
-                  borderRadius: "var(--radius-lg)"
-                }}
-              >
+              <div className={`grid-3 ${styles.statsBox}`}>
                 <div className="text-center">
-                  <div className="text-2xl font-bold" style={{ color: "var(--color-primary)" }}>
+                  <div className={`text-2xl font-bold ${styles.statPrimary}`}>
                     {backend.input_file_count ?? 0}
                   </div>
                   <div className="text-sm text-muted">{t("settings.inputFiles")}</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold" style={{ color: "var(--color-accent)" }}>
+                  <div className={`text-2xl font-bold ${styles.statAccent}`}>
                     {backend.uploads_file_count ?? 0}
                   </div>
                   <div className="text-sm text-muted">{t("settings.uploads")}</div>
@@ -371,9 +364,8 @@ export default function SettingsPage() {
                   <input
                     value={saveUploadsSubdir}
                     onChange={(e) => setSaveUploadsSubdir(e.target.value)}
-                    className="input"
+                    className={`input ${styles.inputSmall}`}
                     placeholder="_uploads"
-                    style={{ maxWidth: "200px" }}
                   />
                 </div>
 
@@ -388,7 +380,7 @@ export default function SettingsPage() {
                   <span className="badge badge-warning">{t("settings.allowMutationsWarning")}</span>
                 </label>
 
-                <div className="flex gap-2" style={{ marginTop: "var(--space-2)" }}>
+                <div className={`flex gap-2 ${styles.formActions}`}>
                   <button onClick={applyToBackendRuntime} disabled={busy} className="btn btn-primary">
                     {t("settings.applyRuntime")}
                   </button>
@@ -404,16 +396,7 @@ export default function SettingsPage() {
                   </span>
                 </div>
 
-                <pre
-                  style={{
-                    margin: 0,
-                    padding: "var(--space-4)",
-                    background: "var(--color-bg-tertiary)",
-                    borderRadius: "var(--radius-md)",
-                    fontSize: "var(--font-size-sm)",
-                    overflowX: "auto"
-                  }}
-                >
+                <pre className={styles.codeBlock}>
                   {envSnippet}
                 </pre>
               </div>
@@ -422,9 +405,9 @@ export default function SettingsPage() {
         </section>
 
         {/* Models */}
-        <section className="card animate-fade-in" style={{ marginBottom: "var(--space-6)", animationDelay: "200ms" }}>
-          <div className="flex justify-between items-center" style={{ marginBottom: "var(--space-4)" }}>
-            <h2 style={{ margin: 0 }}>{t("settings.models")}</h2>
+        <section className={`card animate-fade-in ${styles.sectionAnimated200}`}>
+          <div className={`flex justify-between items-center ${styles.sectionHeader}`}>
+            <h2 className={styles.sectionTitle}>{t("settings.models")}</h2>
             <button onClick={() => void refreshRegistry()} disabled={busy} className="btn btn-secondary">
               {t("settings.refresh")}
             </button>
@@ -432,7 +415,7 @@ export default function SettingsPage() {
 
           {registry && (
             <>
-              <div className="text-sm text-muted" style={{ marginBottom: "var(--space-4)" }}>
+              <div className={`text-sm text-muted ${styles.modelsInfo}`}>
                 {t("settings.modelsDir")}: <code>{registry.models_dir}</code>
               </div>
 
@@ -451,16 +434,16 @@ export default function SettingsPage() {
                         border: b.is_active ? "2px solid var(--color-success)" : "1px solid var(--color-border)"
                       }}
                     >
-                      <div className="flex justify-between items-center" style={{ marginBottom: "var(--space-2)" }}>
+                      <div className={`flex justify-between items-center ${styles.modelItem}`}>
                         <span className="font-semibold">{b.name}</span>
                         {b.is_active && (
                           <span className="badge badge-success">{t("settings.active")}</span>
                         )}
                       </div>
-                      <div className="text-sm text-muted" style={{ marginBottom: "var(--space-2)" }}>
+                      <div className={`text-sm text-muted ${styles.modelItem}`}>
                         {t("common.version")}: {b.version}
                       </div>
-                      <div className="text-sm text-muted" style={{ marginBottom: "var(--space-3)" }}>
+                      <div className={`text-sm text-muted ${styles.modelItemSmall}`}>
                         {t("settings.inputSize")}:{" "}
                         {b.input_size ? `${b.input_size[0]}×${b.input_size[1]}` : "—"}
                       </div>
@@ -482,25 +465,18 @@ export default function SettingsPage() {
         </section>
 
         {/* Model Upload */}
-        <section style={{ marginBottom: "var(--space-6)" }}>
+        <section className={styles.section}>
           <ModelUpload apiBase={apiBase} onUploadSuccess={() => void refreshRegistry()} />
         </section>
 
         {/* Integrations */}
-        <section style={{ marginBottom: "var(--space-6)" }}>
+        <section className={styles.section}>
           <IntegrationsPanel apiBase={apiBase} />
         </section>
 
         {/* Danger Zone */}
-        <section
-          className="card animate-fade-in"
-          style={{
-            marginBottom: "var(--space-6)",
-            animationDelay: "300ms",
-            borderColor: "var(--color-error)"
-          }}
-        >
-          <h2 style={{ color: "var(--color-error)", marginBottom: "var(--space-4)" }}>
+        <section className={`card animate-fade-in ${styles.dangerSection}`}>
+          <h2 className={styles.dangerTitle}>
             ⚠️ {t("settings.dangerZone")}
           </h2>
 
@@ -522,7 +498,7 @@ export default function SettingsPage() {
           </div>
 
           {!canMutate && (
-            <p className="text-sm text-muted" style={{ marginTop: "var(--space-2)" }}>
+            <p className={`text-sm text-muted ${styles.dangerNote}`}>
               Enable <code>VISION_DEMO_ALLOW_MUTATIONS=1</code> to use these actions.
             </p>
           )}

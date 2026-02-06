@@ -8,6 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.bootstrap import bootstrap_model_if_needed
 from app.api.routes import router
+from app.api.dataset_routes import router as dataset_router
+from app.api.training_routes import router as training_router
 from app.middleware import RequestLoggingMiddleware
 from app.watcher import load_watch_config, run_watch_loop
 
@@ -60,6 +62,8 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(router)
+    app.include_router(dataset_router)
+    app.include_router(training_router)
 
     @app.on_event("startup")
     async def _startup() -> None:
