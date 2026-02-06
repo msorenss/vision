@@ -14,5 +14,14 @@
     ],
     "exclude_classes": [],
     "min_confidence": 0.5
+  },
+  "person": {
+    "name": "person",
+    "enabled": true,
+    "include_classes": [
+      "person"
+    ],
+    "exclude_classes": [],
+    "min_confidence": 0.5
   }
 }

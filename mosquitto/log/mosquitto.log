@@ -118,3 +118,10 @@
 1770367747: Saving in-memory database to /mosquitto/data//mosquitto.db.
 1770368229: mosquitto version 2.0.22 terminating
 1770368229: Saving in-memory database to /mosquitto/data//mosquitto.db.
+1770368240: mosquitto version 2.0.22 starting
+1770368240: Config loaded from /mosquitto/config/mosquitto.conf.
+1770368240: Opening ipv4 listen socket on port 1883.
+1770368240: Opening ipv6 listen socket on port 1883.
+1770368240: mosquitto version 2.0.22 running
+1770368241: New connection from 172.18.0.1:40274 on port 1883.
+1770368241: New client connected from 172.18.0.1:40274 as mqtt-explorer-e1182a56 (p2, c1, k60).

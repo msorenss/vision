@@ -1,0 +1,15 @@
+/* LanguageSelector styles */
+.languageButton {
+    font-size: 1.25rem;
+}
+
+.dropdownContainer {
+    position: relative;
+    display: inline-block;
+}
+
+.languageSelect {
+    padding: var(--space-2) var(--space-8) var(--space-2) var(--space-3);
+    font-size: var(--font-size-sm);
+    min-width: 120px;
+}
