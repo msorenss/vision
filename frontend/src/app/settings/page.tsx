@@ -37,6 +37,15 @@ type RegistryResponse = {
   active_model_path: string | null;
 };
 
+type PrivacyStatus = {
+  enabled: boolean;
+  model_loaded: boolean;
+  model_path: string | null;
+  min_score: number;
+  mode: string;
+  is_ulfd: boolean;
+};
+
 const LS_API_BASE_KEY = "vision.apiBase";
 const DEFAULT_API_BASE =
   process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
@@ -58,6 +67,9 @@ export default function SettingsPage() {
 
   // Model registry
   const [registry, setRegistry] = useState<RegistryResponse | null>(null);
+
+  // Privacy status
+  const [privacy, setPrivacy] = useState<PrivacyStatus | null>(null);
 
   const canMutate = backend?.demo_allow_mutations ?? false;
 
@@ -99,6 +111,40 @@ export default function SettingsPage() {
     }
   }
 
+  async function refreshPrivacy() {
+    try {
+      const r = await fetch(`${apiBase}/api/v1/privacy`);
+      if (r.ok) {
+        const j = (await r.json()) as PrivacyStatus;
+        setPrivacy(j);
+      }
+    } catch {
+      // Ignore privacy errors
+    }
+  }
+
+  async function updatePrivacy(update: { enabled?: boolean; mode?: string; min_score?: number }) {
+    setBusy(true);
+    try {
+      const r = await fetch(`${apiBase}/api/v1/privacy`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(update),
+      });
+      const j = await r.json();
+      if (!r.ok) {
+        toast.error(j?.detail ?? t("notify.requestFailed", { status: r.status }));
+        return;
+      }
+      setPrivacy(j as PrivacyStatus);
+      toast.success(t("notify.settingsApplied"));
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function activateModel(name: string, version: string) {
     setBusy(true);
     try {
@@ -123,6 +169,7 @@ export default function SettingsPage() {
   useEffect(() => {
     void refreshBackend();
     void refreshRegistry();
+    void refreshPrivacy();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiBase]);
 
@@ -467,6 +514,110 @@ export default function SettingsPage() {
         {/* Model Upload */}
         <section className={styles.section}>
           <ModelUpload apiBase={apiBase} onUploadSuccess={() => void refreshRegistry()} />
+        </section>
+
+        {/* Privacy & Anonymization */}
+        <section className={`card animate-fade-in ${styles.sectionAnimated300}`}>
+          <div className={`flex justify-between items-center ${styles.sectionHeader}`}>
+            <h2 className={styles.sectionTitle}>🔒 {t("privacy.title")}</h2>
+            <button onClick={() => void refreshPrivacy()} disabled={busy} className="btn btn-secondary">
+              {t("settings.refresh")}
+            </button>
+          </div>
+
+          {privacy ? (
+            <>
+              <div className={`grid-3 ${styles.statsBox}`}>
+                <div className="text-center">
+                  <div className={`text-2xl font-bold ${privacy.enabled ? styles.statPrimary : ""}`}>
+                    {privacy.enabled ? "✅" : "❌"}
+                  </div>
+                  <div className="text-sm text-muted">{t("privacy.status")}</div>
+                </div>
+                <div className="text-center">
+                  <div className={`text-2xl font-bold ${privacy.model_loaded ? styles.statAccent : ""}`}>
+                    {privacy.model_loaded ? "✅" : "❌"}
+                  </div>
+                  <div className="text-sm text-muted">{t("privacy.modelLoaded")}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold">
+                    {privacy.mode === "blur" ? "🫧" : "🟦"}
+                  </div>
+                  <div className="text-sm text-muted">{t("privacy.mode")}</div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-4">
+                <div className="text-sm">
+                  <strong>{t("privacy.model")}:</strong>{" "}
+                  <code>{privacy.model_path ?? "—"}</code>
+                  {privacy.is_ulfd && (
+                    <span className="badge badge-info" style={{ marginLeft: "var(--space-2)" }}>ULFD</span>
+                  )}
+                </div>
+
+                {/* Toggle enabled */}
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    className="checkbox"
+                    checked={privacy.enabled}
+                    onChange={(e) => void updatePrivacy({ enabled: e.target.checked })}
+                    disabled={busy || !backend?.allow_runtime_settings}
+                  />
+                  <span>{t("privacy.enableLabel")}</span>
+                </label>
+
+                {/* Mode selector */}
+                <div>
+                  <label className="label">{t("privacy.modeLabel")}</label>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => void updatePrivacy({ mode: "blur" })}
+                      disabled={busy || !backend?.allow_runtime_settings}
+                      className={`btn ${privacy.mode === "blur" ? "btn-primary" : "btn-secondary"}`}
+                    >
+                      🫧 {t("privacy.blur")}
+                    </button>
+                    <button
+                      onClick={() => void updatePrivacy({ mode: "pixelate" })}
+                      disabled={busy || !backend?.allow_runtime_settings}
+                      className={`btn ${privacy.mode === "pixelate" ? "btn-primary" : "btn-secondary"}`}
+                    >
+                      🟦 {t("privacy.pixelate")}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Min score slider */}
+                <div>
+                  <label className="label">
+                    {t("privacy.minScore")}: {(privacy.min_score * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={Math.round(privacy.min_score * 100)}
+                    onChange={(e) => void updatePrivacy({ min_score: parseInt(e.target.value) / 100 })}
+                    disabled={busy || !backend?.allow_runtime_settings}
+                    style={{ width: "100%", maxWidth: "300px" }}
+                  />
+                </div>
+              </div>
+
+              {!backend?.allow_runtime_settings && (
+                <p className="text-sm text-muted" style={{ marginTop: "var(--space-3)" }}>
+                  {t("privacy.runtimeDisabled")}
+                </p>
+              )}
+            </>
+          ) : (
+            <div className="text-center text-muted" style={{ padding: "var(--space-4)" }}>
+              {t("common.loading")}
+            </div>
+          )}
         </section>
 
         {/* Integrations */}

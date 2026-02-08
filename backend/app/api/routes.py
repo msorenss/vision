@@ -2,13 +2,18 @@ from __future__ import annotations
 
 import io
 import json
+import logging
 import os
 import re
+import time
 import zipfile
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, File, HTTPException, Query, UploadFile
+from fastapi import (
+    APIRouter, BackgroundTasks, File,
+    HTTPException, Query, UploadFile,
+)
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from PIL import Image, ImageOps
 
@@ -18,16 +23,29 @@ from app.api.schema import (
     FilterCreateRequest,
     FilterListResponse,
     InferResponse,
+    IntegrationsStatus,
+    IntegrationsUpdate,
     ModelInfo,
     ModelUploadResponse,
+    MqttStatus,
+    OpcUaStatus,
+    PrivacyStatus,
+    PrivacyUpdate,
     RegistryResponse,
     SettingsInfo,
     SettingsUpdate,
     WatcherStatus,
+    WebhookStatus,
 )
 from app.inference.engine import get_engine, reset_engine
+from app.inference.privacy import (
+    anonymize_faces,
+    get_privacy_engine,
+    privacy_enabled,
+)
 
 router = APIRouter()
+logger = logging.getLogger("vision.privacy")
 
 
 @router.get("/")
@@ -85,6 +103,45 @@ def _allow_runtime_settings() -> bool:
     return _truthy(os.getenv("VISION_ALLOW_RUNTIME_SETTINGS", "0"))
 
 
+def _maybe_anonymize_image(
+    image: Image.Image,
+) -> tuple[Image.Image, bool, int]:
+    if not privacy_enabled():
+        return image, False, 0
+
+    engine = get_privacy_engine()
+    if not engine.configured_model_path or not engine.loaded:
+        logger.info(
+            "privacy_disabled_or_unavailable",
+            extra={
+                "model_path": engine.configured_model_path,
+                "loaded": engine.loaded,
+            },
+        )
+        return image, False, 0
+
+    start = time.perf_counter()
+    try:
+        faces = engine.predict_faces(image)
+        mode = os.getenv("VISION_PRIVACY_MODE", "blur").strip().lower()
+        if mode not in {"blur", "pixelate"}:
+            mode = "blur"
+        out, applied = anonymize_faces(image, faces, mode=mode)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("privacy_failed: %s", exc)
+        return image, False, 0
+
+    latency_ms = (time.perf_counter() - start) * 1000
+    logger.info(
+        "privacy_applied",
+        extra={
+            "faces": applied,
+            "latency_ms": round(latency_ms, 2),
+        },
+    )
+    return out, True, applied
+
+
 def _count_images(
     path: Path,
     exclude_subdir: str | None = None,
@@ -123,7 +180,9 @@ def _settings_info() -> SettingsInfo:
     uploads_subdir = os.getenv("VISION_SAVE_UPLOADS_SUBDIR", "_uploads")
 
     # Count input files (excluding uploads subfolder)
-    input_count, input_bytes = _count_images(base, exclude_subdir=uploads_subdir)
+    input_count, input_bytes = _count_images(
+        base, exclude_subdir=uploads_subdir,
+    )
 
     # Count uploads files
     uploads_dir = base / uploads_subdir
@@ -340,6 +399,8 @@ def demo_infer(name: str) -> InferResponse:
             detail=f"Invalid image: {exc}",
         ) from exc
 
+    pil, privacy_applied, privacy_faces = _maybe_anonymize_image(pil)
+
     engine = get_engine()
     if not engine.configured_model_path:
         raise HTTPException(
@@ -356,6 +417,8 @@ def demo_infer(name: str) -> InferResponse:
         image_width=pil.width,
         image_height=pil.height,
         detections=detections,
+        privacy_applied=privacy_applied,
+        privacy_faces=privacy_faces,
     )
 
 
@@ -431,21 +494,139 @@ def reload_model() -> ModelInfo:
     return models()
 
 
+def _privacy_info() -> PrivacyStatus:
+    """Build current privacy status."""
+    enabled = privacy_enabled()
+    engine = get_privacy_engine()
+    is_ulfd = getattr(engine, "_is_ulfd", False)
+    default_score = "0.15" if is_ulfd else "0.5"
+    min_score = float(
+        os.getenv("VISION_PRIVACY_MIN_SCORE", default_score)
+    )
+    mode = os.getenv("VISION_PRIVACY_MODE", "blur")
+    return PrivacyStatus(
+        enabled=enabled,
+        model_loaded=engine.loaded,
+        model_path=engine.configured_model_path,
+        min_score=min_score,
+        mode=mode.strip().lower(),
+        is_ulfd=is_ulfd,
+    )
+
+
+@router.get("/api/v1/privacy", response_model=PrivacyStatus)
+def privacy_status() -> PrivacyStatus:
+    """Return current privacy / face anonymization status."""
+    return _privacy_info()
+
+
+@router.post("/api/v1/privacy", response_model=PrivacyStatus)
+def update_privacy(update: PrivacyUpdate) -> PrivacyStatus:
+    """Update privacy settings at runtime."""
+    if not _allow_runtime_settings():
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Runtime settings are disabled. "
+                "Set VISION_ALLOW_RUNTIME_SETTINGS=1."
+            ),
+        )
+    if update.enabled is not None:
+        os.environ["VISION_PRIVACY_FACE_BLUR"] = (
+            "1" if update.enabled else "0"
+        )
+    if update.mode is not None:
+        if update.mode in {"blur", "pixelate"}:
+            os.environ["VISION_PRIVACY_MODE"] = update.mode
+    if update.min_score is not None:
+        os.environ["VISION_PRIVACY_MIN_SCORE"] = str(
+            update.min_score
+        )
+    return _privacy_info()
+
+
+@router.post("/api/v1/privacy/anonymize")
+async def privacy_anonymize(
+    image: UploadFile = File(...),
+) -> StreamingResponse:
+    """Return the anonymized version of an uploaded image."""
+    raw = await image.read()
+    try:
+        pil = ImageOps.exif_transpose(
+            Image.open(io.BytesIO(raw))
+        ).convert("RGB")
+    except Exception as exc:
+        raise HTTPException(
+            status_code=415,
+            detail=f"Invalid image: {exc}",
+        ) from exc
+
+    pil, applied, count = _maybe_anonymize_image(pil)
+
+    buf = io.BytesIO()
+    pil.save(buf, format="JPEG", quality=90)
+    buf.seek(0)
+    return StreamingResponse(
+        buf,
+        media_type="image/jpeg",
+        headers={
+            "X-Privacy-Applied": str(applied).lower(),
+            "X-Privacy-Faces": str(count),
+        },
+    )
+
+
+@router.get("/api/v1/demo/image/anonymized")
+def demo_image_anonymized(name: str) -> StreamingResponse:
+    """Serve an anonymized demo image."""
+    base = _demo_input_dir()
+    candidate = (base / name).resolve()
+    try:
+        candidate.relative_to(base)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file path",
+        ) from exc
+    if not candidate.exists() or not candidate.is_file():
+        raise HTTPException(
+            status_code=404, detail="File not found",
+        )
+    try:
+        pil = ImageOps.exif_transpose(
+            Image.open(candidate)
+        ).convert("RGB")
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid image: {exc}",
+        ) from exc
+
+    pil, _, _ = _maybe_anonymize_image(pil)
+
+    buf = io.BytesIO()
+    pil.save(buf, format="JPEG", quality=90)
+    buf.seek(0)
+    return StreamingResponse(
+        buf, media_type="image/jpeg",
+    )
+
+
 def _models_dir() -> Path:
     """Return the models directory.
-    
-    Uses VISION_MODELS_DIR env var if set, otherwise /models (Docker) 
+
+    Uses VISION_MODELS_DIR env var if set, otherwise /models (Docker)
     or repo-relative path (local dev).
     """
     env_path = os.getenv("VISION_MODELS_DIR")
     if env_path:
         return Path(env_path).resolve()
-    
+
     # Docker typically mounts to /models
     docker_path = Path("/models")
     if docker_path.exists():
         return docker_path
-    
+
     # Fallback: repo-relative for local dev
     here = Path(__file__).resolve()
     return here.parents[2] / "models"
@@ -521,7 +702,8 @@ def activate_model(
             status_code=403,
             detail=(
                 "Runtime settings are disabled. "
-                "Set VISION_ALLOW_RUNTIME_SETTINGS=1 to enable model switching."
+                "Set VISION_ALLOW_RUNTIME_SETTINGS=1 "
+                "to enable model switching."
             ),
         )
 
@@ -620,7 +802,9 @@ def download_model_bundle() -> StreamingResponse:
     )
 
 
-async def _process_integrations(detections: list, model_path: str | None) -> None:
+async def _process_integrations(
+    detections: list, model_path: str | None,
+) -> None:
     """Process integrations (OPC UA, MQTT, Webhook) in background."""
     from fastapi.encoders import jsonable_encoder
     from app.integrations.mqtt_client import publish_results
@@ -628,7 +812,7 @@ async def _process_integrations(detections: list, model_path: str | None) -> Non
     from app.integrations.webhook import send_webhook
 
     timestamp = datetime.utcnow().isoformat() + "Z"
-    
+
     # Try to extract a friendly model name
     model_name = "Unknown"
     if model_path:
@@ -637,16 +821,16 @@ async def _process_integrations(detections: list, model_path: str | None) -> Non
             # e.g. /models/demo/v1/model.onnx -> "demo (v1)"
             # parts: ('/', 'models', 'demo', 'v1', 'model.onnx')
             if len(p.parts) >= 3 and p.parents[2].name != "models":
-                 # Fallback logic
-                 pass
-            
+                # Fallback logic
+                pass
+
             # Simple heuristic: use directory name + parent
             # v1/model.onnx -> use parent name "v1"
             # demo/v1 -> "demo v1"
-            
+
             bundle_ver = p.parent.name
             bundle_name = p.parent.parent.name
-            if bundle_name == "models": 
+            if bundle_name == "models":
                 model_name = bundle_ver
             else:
                 model_name = f"{bundle_name} {bundle_ver}"
@@ -670,7 +854,6 @@ async def _process_integrations(detections: list, model_path: str | None) -> Non
 
     # 3. Webhook
     await send_webhook(payload)
-
 
 
 @router.post("/api/v1/infer", response_model=InferResponse)
@@ -711,6 +894,8 @@ async def infer(
             detail=f"Upload must be a supported image format: {exc}",
         ) from exc
 
+    pil, privacy_applied, privacy_faces = _maybe_anonymize_image(pil)
+
     # Optional: persist uploads into the mounted /input folder so they can be
     # re-used via the demo endpoints.
     _maybe_persist_upload(raw, upload.filename)
@@ -733,9 +918,10 @@ async def infer(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     background_tasks.add_task(
-        _process_integrations, 
-        detections, 
-        str(engine.configured_model_path) if engine.configured_model_path else None
+        _process_integrations,
+        detections,
+        str(engine.configured_model_path)
+        if engine.configured_model_path else None,
     )
 
     return InferResponse(
@@ -743,6 +929,8 @@ async def infer(
         image_width=pil.width,
         image_height=pil.height,
         detections=detections,
+        privacy_applied=privacy_applied,
+        privacy_faces=privacy_faces,
     )
 
 
@@ -753,13 +941,13 @@ def _filters_path() -> Path:
     env_path = os.getenv("VISION_FILTERS_PATH")
     if env_path:
         return Path(env_path).resolve()
-    
+
     # Check in app directory first
     app_dir = Path(__file__).parent.parent.parent
     candidate = app_dir / "filters.json"
     if candidate.exists():
         return candidate
-    
+
     # Fallback to creating in models dir
     models_dir = _models_dir()
     return models_dir / "filters.json"
@@ -776,11 +964,15 @@ def _load_filters() -> dict[str, FilterConfig]:
             exclude_classes=[],
             min_confidence=0.5
         )}
-    
+
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
         return {
-            name: FilterConfig(name=name, **cfg) if "name" not in cfg else FilterConfig(**cfg)
+            name: (
+                FilterConfig(name=name, **cfg)
+                if "name" not in cfg
+                else FilterConfig(**cfg)
+            )
             for name, cfg in data.items()
         }
     except Exception:
@@ -791,7 +983,7 @@ def _save_filters(filters: dict[str, FilterConfig]) -> None:
     """Save filters to JSON file."""
     path = _filters_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     data = {
         name: {
             "name": f.name,
@@ -812,25 +1004,33 @@ def _apply_filter(
     """Apply filter to detection list."""
     if not filter_config.enabled:
         return detections
-    
+
     result = []
     for det in detections:
         # Check confidence threshold
         if det.score < filter_config.min_confidence:
             continue
-        
+
         # Check include list (empty = include all)
         if filter_config.include_classes:
-            if det.label.lower() not in [c.lower() for c in filter_config.include_classes]:
+            included = [
+                c.lower()
+                for c in filter_config.include_classes
+            ]
+            if det.label.lower() not in included:
                 continue
-        
+
         # Check exclude list
         if filter_config.exclude_classes:
-            if det.label.lower() in [c.lower() for c in filter_config.exclude_classes]:
+            excluded = [
+                c.lower()
+                for c in filter_config.exclude_classes
+            ]
+            if det.label.lower() in excluded:
                 continue
-        
+
         result.append(det)
-    
+
     return result
 
 
@@ -849,7 +1049,10 @@ def get_filter(name: str) -> FilterConfig:
     """Get a specific filter by name."""
     filters = _load_filters()
     if name not in filters:
-        raise HTTPException(status_code=404, detail=f"Filter '{name}' not found")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Filter '{name}' not found",
+        )
     return filters[name]
 
 
@@ -861,7 +1064,7 @@ def create_filter(req: FilterCreateRequest) -> FilterConfig:
             status_code=403,
             detail="Runtime settings are disabled.",
         )
-    
+
     filters = _load_filters()
     new_filter = FilterConfig(
         name=req.name,
@@ -883,17 +1086,20 @@ def delete_filter(name: str) -> dict:
             status_code=403,
             detail="Runtime settings are disabled.",
         )
-    
+
     if name == "default":
         raise HTTPException(
             status_code=400,
             detail="Cannot delete the default filter.",
         )
-    
+
     filters = _load_filters()
     if name not in filters:
-        raise HTTPException(status_code=404, detail=f"Filter '{name}' not found")
-    
+        raise HTTPException(
+            status_code=404,
+            detail=f"Filter '{name}' not found",
+        )
+
     del filters[name]
     _save_filters(filters)
     return {"ok": True, "deleted": name}
@@ -905,9 +1111,9 @@ def delete_filter(name: str) -> dict:
 def watcher_status() -> WatcherStatus:
     """Get the status of the folder watcher."""
     from app.watcher import load_watch_config
-    
+
     cfg = load_watch_config()
-    
+
     # Count pending files (images in input not yet processed)
     pending = 0
     if cfg.input_dir.exists():
@@ -921,7 +1127,7 @@ def watcher_status() -> WatcherStatus:
                 out_json = cfg.output_dir / f"{rel.stem}.detections.json"
                 if not out_json.exists():
                     pending += 1
-    
+
     # Count processed today
     processed_today = 0
     today = datetime.now().date()
@@ -933,7 +1139,7 @@ def watcher_status() -> WatcherStatus:
                     processed_today += 1
             except Exception:
                 continue
-    
+
     return WatcherStatus(
         enabled=cfg.enabled,
         input_dir=str(cfg.input_dir),
@@ -958,52 +1164,59 @@ async def upload_model(
     if not _allow_runtime_settings():
         raise HTTPException(
             status_code=403,
-            detail="Runtime settings are disabled. Set VISION_ALLOW_RUNTIME_SETTINGS=1.",
+            detail=(
+                "Runtime settings are disabled."
+                " Set VISION_ALLOW_RUNTIME_SETTINGS=1."
+            ),
         )
-    
+
     # Validate name/version
     safe_name = re.sub(r"[^a-zA-Z0-9_-]", "_", name)
     safe_version = re.sub(r"[^a-zA-Z0-9_.-]", "_", version)
-    
+
     if not safe_name or not safe_version:
         raise HTTPException(
             status_code=400,
             detail="Invalid name or version.",
         )
-    
+
     # Check file sizes
     max_mb = float(os.getenv("VISION_MAX_MODEL_SIZE_MB", "500"))
     max_bytes = int(max_mb * 1024 * 1024)
-    
+
     model_data = await model.read()
     if len(model_data) > max_bytes:
         raise HTTPException(
             status_code=413,
             detail=f"Model too large. Max: {max_mb} MB",
         )
-    
+
     labels_data = await labels.read()
     labels_text = labels_data.decode("utf-8")
-    labels_list = [l.strip() for l in labels_text.strip().split("\n") if l.strip()]
-    
+    labels_list = [
+        ln.strip()
+        for ln in labels_text.strip().split("\n")
+        if ln.strip()
+    ]
+
     if not labels_list:
         raise HTTPException(
             status_code=400,
             detail="labels.txt is empty or invalid.",
         )
-    
+
     # Create bundle directory
     bundle_dir = _models_dir() / safe_name / safe_version
     bundle_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Save files
     model_path = bundle_dir / "model.onnx"
     labels_path = bundle_dir / "labels.txt"
     meta_path = bundle_dir / "meta.json"
-    
+
     model_path.write_bytes(model_data)
     labels_path.write_text(labels_text, encoding="utf-8")
-    
+
     # Create meta.json
     meta = {
         "uploaded_at": datetime.utcnow().isoformat(),
@@ -1011,7 +1224,7 @@ async def upload_model(
         "model_size_bytes": len(model_data),
     }
     meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
-    
+
     return ModelUploadResponse(
         ok=True,
         name=safe_name,
@@ -1033,13 +1246,18 @@ async def infer_with_filter(
     # Load filter
     filters = _load_filters()
     if filter_name not in filters:
-        raise HTTPException(status_code=404, detail=f"Filter '{filter_name}' not found")
-    
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"Filter '{filter_name}' not found"
+            ),
+        )
+
     filter_config = filters[filter_name]
-    
+
     # Run normal inference
     raw = await image.read()
-    
+
     try:
         pil = ImageOps.exif_transpose(
             Image.open(io.BytesIO(raw))
@@ -1049,31 +1267,36 @@ async def infer_with_filter(
             status_code=415,
             detail=f"Invalid image: {exc}",
         ) from exc
-    
+
+    pil, privacy_applied, privacy_faces = _maybe_anonymize_image(pil)
+
     engine = get_engine()
     if not engine.configured_model_path:
         raise HTTPException(
             status_code=503,
             detail="No model configured.",
         )
-    
+
     detections = engine.predict(pil)
-    
+
     # Apply filter
     filtered_detections = _apply_filter(detections, filter_config)
-    
+
     background_tasks.add_task(
-        _process_integrations, 
-        filtered_detections, 
-        str(engine.configured_model_path) if engine.configured_model_path else None
+        _process_integrations,
+        filtered_detections,
+        str(engine.configured_model_path)
+        if engine.configured_model_path else None,
     )
-    
+
     return InferResponse(
         model_path=engine.configured_model_path,
         image_width=pil.width,
         image_height=pil.height,
         detections=filtered_detections,
         filter_applied=filter_name,
+        privacy_applied=privacy_applied,
+        privacy_faces=privacy_faces,
     )
 
 
@@ -1086,23 +1309,37 @@ async def demo_infer_with_filter(
     """Run inference on a demo file with a specific filter applied."""
     filters = _load_filters()
     if filter_name not in filters:
-        raise HTTPException(status_code=404, detail=f"Filter '{filter_name}' not found")
-    
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"Filter '{filter_name}'"
+                " not found"
+            ),
+        )
+
     base = _demo_input_dir()
     candidate = (base / name).resolve()
 
     try:
         candidate.relative_to(base)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail="Invalid file path") from exc
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file path",
+        ) from exc
 
     if not candidate.exists() or not candidate.is_file():
         raise HTTPException(status_code=404, detail="File not found")
-    
+
     try:
         pil = ImageOps.exif_transpose(Image.open(candidate)).convert("RGB")
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"Invalid image: {exc}") from exc
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid image: {exc}",
+        ) from exc
+
+    pil, privacy_applied, privacy_faces = _maybe_anonymize_image(pil)
 
     engine = get_engine()
     if not engine.configured_model_path:
@@ -1110,19 +1347,22 @@ async def demo_infer_with_filter(
 
     detections = engine.predict(pil)
     filtered_detections = _apply_filter(detections, filters[filter_name])
-    
+
     background_tasks.add_task(
-        _process_integrations, 
-        filtered_detections, 
-        str(engine.configured_model_path) if engine.configured_model_path else None
+        _process_integrations,
+        filtered_detections,
+        str(engine.configured_model_path)
+        if engine.configured_model_path else None,
     )
-    
+
     return InferResponse(
         model_path=engine.configured_model_path,
         image_width=pil.width,
         image_height=pil.height,
         detections=filtered_detections,
         filter_applied=filter_name,
+        privacy_applied=privacy_applied,
+        privacy_faces=privacy_faces,
     )
 
 
@@ -1132,14 +1372,17 @@ def get_model_labels() -> dict:
     engine = get_engine()
     if not engine.configured_model_path:
         raise HTTPException(status_code=503, detail="No model configured")
-    
+
     model_path = Path(engine.configured_model_path)
     labels_path = model_path.parent / "labels.txt"
-    
+
     if not labels_path.exists():
         raise HTTPException(status_code=404, detail="labels.txt not found")
-    
-    labels = [l.strip() for l in labels_path.read_text(encoding="utf-8").strip().split("\n")]
+
+    raw = labels_path.read_text(
+        encoding="utf-8",
+    ).strip().split("\n")
+    labels = [ln.strip() for ln in raw]
     return {
         "model_path": str(model_path),
         "labels": labels,
@@ -1149,30 +1392,22 @@ def get_model_labels() -> dict:
 
 # ============ Integrations ============
 
-from app.api.schema import (
-    IntegrationsStatus,
-    IntegrationsUpdate,
-    OpcUaStatus,
-    MqttStatus,
-    WebhookStatus,
-)
-
 
 def _get_integrations_status() -> IntegrationsStatus:
     """Get current status of all integrations."""
     # Check if libraries are available
     try:
-        import aiomqtt
+        import aiomqtt  # noqa: F401
         mqtt_available = True
     except ImportError:
         mqtt_available = False
-    
+
     try:
-        from asyncua import Server
+        from asyncua import Server  # noqa: F401
         opcua_available = True
     except ImportError:
         opcua_available = False
-    
+
     # Get OPC UA status
     from app.integrations.opcua_server import server_instance
     opcua_enabled = os.getenv("VISION_OPCUA_ENABLE", "0") == "1"
@@ -1182,7 +1417,7 @@ def _get_integrations_status() -> IntegrationsStatus:
         f"opc.tcp://0.0.0.0:{opcua_port}/freeopcua/server/"
     )
     opcua_interval = int(os.getenv("VISION_OPCUA_UPDATE_INTERVAL_MS", "0"))
-    
+
     opcua_status = OpcUaStatus(
         available=opcua_available,
         enabled=opcua_enabled,
@@ -1192,13 +1427,13 @@ def _get_integrations_status() -> IntegrationsStatus:
         namespace="http://vision-system.local/vision",
         update_interval_ms=opcua_interval,
     )
-    
+
     # Get MQTT status
     mqtt_broker = os.getenv("VISION_MQTT_BROKER")
     mqtt_port = int(os.getenv("VISION_MQTT_PORT", "1883"))
     mqtt_topic = os.getenv("VISION_MQTT_TOPIC", "vision/results")
     mqtt_username = os.getenv("VISION_MQTT_USERNAME")
-    
+
     mqtt_status = MqttStatus(
         available=mqtt_available,
         configured=bool(mqtt_broker),
@@ -1207,18 +1442,18 @@ def _get_integrations_status() -> IntegrationsStatus:
         topic=mqtt_topic,
         username=mqtt_username,
     )
-    
+
     # Get Webhook status
     webhook_url = os.getenv("VISION_WEBHOOK_URL")
     webhook_headers = os.getenv("VISION_WEBHOOK_HEADERS", "{}")
     has_custom_headers = webhook_headers != "{}" and bool(webhook_headers)
-    
+
     webhook_status = WebhookStatus(
         configured=bool(webhook_url),
         url=webhook_url,
         has_custom_headers=has_custom_headers,
     )
-    
+
     return IntegrationsStatus(
         opcua=opcua_status,
         mqtt=mqtt_status,
@@ -1233,7 +1468,9 @@ def get_integrations() -> IntegrationsStatus:
 
 
 @router.post("/api/v1/integrations", response_model=IntegrationsStatus)
-async def update_integrations(update: IntegrationsUpdate) -> IntegrationsStatus:
+async def update_integrations(
+    update: IntegrationsUpdate,
+) -> IntegrationsStatus:
     """Update integration settings at runtime."""
     if not _allow_runtime_settings():
         raise HTTPException(
@@ -1244,49 +1481,57 @@ async def update_integrations(update: IntegrationsUpdate) -> IntegrationsStatus:
                 "/api/v1/integrations updates."
             ),
         )
-    
+
     # Update OPC UA settings
     if update.opcua_enabled is not None:
-        os.environ["VISION_OPCUA_ENABLE"] = "1" if update.opcua_enabled else "0"
-        
+        os.environ["VISION_OPCUA_ENABLE"] = (
+            "1" if update.opcua_enabled else "0"
+        )
+
         # Start or stop the OPC UA server
         from app.integrations.opcua_server import server_instance
         if update.opcua_enabled and not server_instance.running:
             await server_instance.start()
         elif not update.opcua_enabled and server_instance.running:
             await server_instance.stop()
-    
+
     if update.opcua_port is not None:
         os.environ["VISION_OPCUA_PORT"] = str(update.opcua_port)
         # Rebuild the endpoint URL with new port
-        os.environ["VISION_OPCUA_ENDPOINT"] = f"opc.tcp://0.0.0.0:{update.opcua_port}/freeopcua/server/"
-    
+        os.environ["VISION_OPCUA_ENDPOINT"] = (
+            "opc.tcp://0.0.0.0:"
+            f"{update.opcua_port}"
+            "/freeopcua/server/"
+        )
+
     if update.opcua_update_interval_ms is not None:
-        os.environ["VISION_OPCUA_UPDATE_INTERVAL_MS"] = str(update.opcua_update_interval_ms)
-    
+        os.environ[
+            "VISION_OPCUA_UPDATE_INTERVAL_MS"
+        ] = str(update.opcua_update_interval_ms)
+
     # Update MQTT settings
     if update.mqtt_broker is not None:
         os.environ["VISION_MQTT_BROKER"] = update.mqtt_broker
-    
+
     if update.mqtt_port is not None:
         os.environ["VISION_MQTT_PORT"] = str(update.mqtt_port)
-    
+
     if update.mqtt_topic is not None:
         os.environ["VISION_MQTT_TOPIC"] = update.mqtt_topic
-    
+
     if update.mqtt_username is not None:
         os.environ["VISION_MQTT_USERNAME"] = update.mqtt_username
-    
+
     if update.mqtt_password is not None:
         os.environ["VISION_MQTT_PASSWORD"] = update.mqtt_password
-    
+
     # Update Webhook settings
     if update.webhook_url is not None:
         os.environ["VISION_WEBHOOK_URL"] = update.webhook_url
-    
+
     if update.webhook_headers is not None:
         os.environ["VISION_WEBHOOK_HEADERS"] = update.webhook_headers
-    
+
     return _get_integrations_status()
 
 
@@ -1295,21 +1540,31 @@ async def test_webhook() -> dict:
     """Send a test message to the configured webhook."""
     webhook_url = os.getenv("VISION_WEBHOOK_URL")
     if not webhook_url:
-        raise HTTPException(status_code=400, detail="No webhook URL configured")
-    
+        raise HTTPException(
+            status_code=400,
+            detail="No webhook URL configured",
+        )
+
     from app.integrations.webhook import send_webhook
-    
+
     test_payload = {
         "type": "test",
         "message": "Vision webhook test",
         "timestamp": datetime.utcnow().isoformat() + "Z",
     }
-    
+
     try:
         await send_webhook(test_payload)
-        return {"ok": True, "url": webhook_url, "message": "Test sent successfully"}
+        return {
+            "ok": True,
+            "url": webhook_url,
+            "message": "Test sent successfully",
+        }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Webhook test failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Webhook test failed: {e}",
+        )
 
 
 @router.post("/api/v1/integrations/test/mqtt")
@@ -1317,20 +1572,23 @@ async def test_mqtt() -> dict:
     """Send a test message to the configured MQTT broker."""
     mqtt_broker = os.getenv("VISION_MQTT_BROKER")
     if not mqtt_broker:
-        raise HTTPException(status_code=400, detail="No MQTT broker configured")
-    
+        raise HTTPException(
+            status_code=400,
+            detail="No MQTT broker configured",
+        )
+
     from app.integrations.mqtt_client import publish_results
-    
+
     test_payload = {
         "type": "test",
         "message": "Vision MQTT test",
         "timestamp": datetime.utcnow().isoformat() + "Z",
     }
-    
+
     try:
         await publish_results(test_payload)
         return {
-            "ok": True, 
+            "ok": True,
             "broker": mqtt_broker,
             "topic": os.getenv("VISION_MQTT_TOPIC", "vision/results"),
             "message": "Test message published"

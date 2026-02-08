@@ -6,9 +6,15 @@
 **/node_modules/
 **/.next/
 
+.vscode\settings.json
+
 # Env
 .env
 .env.*
 
 # Local model artifacts (keep if you want to commit them)
 # models/
+mosquitto/log/mosquitto.log
+mosquitto/data/mosquitto.db
+models/version-slim-320_without_postprocessing.onnx
+*.onnx1

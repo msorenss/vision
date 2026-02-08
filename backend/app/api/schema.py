@@ -23,6 +23,8 @@ class InferResponse(BaseModel):
     image_height: int
     detections: list[Detection]
     filter_applied: str | None = None
+    privacy_applied: bool | None = None
+    privacy_faces: int | None = None
 
 
 class ModelInfo(BaseModel):
@@ -70,11 +72,56 @@ class RegistryResponse(BaseModel):
     active_model_path: str | None = None
 
 
+# ============ Privacy ============
+
+class PrivacyStatus(BaseModel):
+    """Status of privacy / face anonymization."""
+
+    enabled: bool = Field(
+        description="True if VISION_PRIVACY_FACE_BLUR is on",
+    )
+    model_loaded: bool = Field(
+        description="True if privacy ONNX model loaded",
+    )
+    model_path: str | None = Field(
+        default=None,
+        description="Path to privacy model",
+    )
+    min_score: float = Field(
+        default=0.5,
+        description="Minimum face score threshold",
+    )
+    mode: str = Field(
+        default="blur",
+        description="blur or pixelate",
+    )
+    is_ulfd: bool = Field(
+        default=False,
+        description="True if ULFD model detected",
+    )
+
+
+class PrivacyUpdate(BaseModel):
+    """Request to update privacy settings at runtime."""
+
+    enabled: bool | None = None
+    mode: str | None = Field(
+        default=None,
+        description="blur or pixelate",
+    )
+    min_score: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Minimum face score",
+    )
+
+
 # ============ P8: Filters ============
 
 class FilterConfig(BaseModel):
     """Configuration for a detection filter."""
-    
+
     name: str = Field(..., description="Filter name (e.g., 'buses_only')")
     enabled: bool = True
     include_classes: list[str] = Field(
@@ -95,14 +142,14 @@ class FilterConfig(BaseModel):
 
 class FilterListResponse(BaseModel):
     """List of available filters."""
-    
+
     filters: list[FilterConfig]
     active_filter: str | None = None
 
 
 class FilterCreateRequest(BaseModel):
     """Request to create/update a filter."""
-    
+
     name: str
     include_classes: list[str] = Field(default_factory=list)
     exclude_classes: list[str] = Field(default_factory=list)
@@ -113,7 +160,7 @@ class FilterCreateRequest(BaseModel):
 
 class WatcherStatus(BaseModel):
     """Status of the folder watcher."""
-    
+
     enabled: bool
     input_dir: str
     output_dir: str
@@ -128,7 +175,7 @@ class WatcherStatus(BaseModel):
 
 class ModelUploadResponse(BaseModel):
     """Response from model upload."""
-    
+
     ok: bool
     name: str
     version: str
@@ -140,38 +187,56 @@ class ModelUploadResponse(BaseModel):
 
 class OpcUaStatus(BaseModel):
     """OPC UA server status and configuration."""
-    
+
     available: bool = Field(description="True if asyncua library is installed")
     enabled: bool = Field(description="True if server is enabled")
     running: bool = Field(description="True if server is currently running")
-    endpoint: str | None = Field(default=None, description="OPC UA endpoint URL")
+    endpoint: str | None = Field(
+        default=None,
+        description="OPC UA endpoint URL",
+    )
     port: int = Field(default=4840, description="Server port")
-    namespace: str = Field(default="http://volvocars.com/vision", description="OPC UA namespace")
-    update_interval_ms: int = Field(default=0, description="Update interval in ms (0 = immediate)")
+    namespace: str = Field(
+        default="http://volvocars.com/vision",
+        description="OPC UA namespace",
+    )
+    update_interval_ms: int = Field(
+        default=0,
+        description="Update interval in ms (0 = immediate)",
+    )
 
 
 class MqttStatus(BaseModel):
     """MQTT client status and configuration."""
-    
+
     available: bool = Field(description="True if aiomqtt library is installed")
     configured: bool = Field(description="True if broker is configured")
-    broker: str | None = Field(default=None, description="MQTT broker hostname")
+    broker: str | None = Field(
+        default=None,
+        description="MQTT broker hostname",
+    )
     port: int = Field(default=1883, description="Broker port")
     topic: str = Field(default="vision/results", description="Publish topic")
-    username: str | None = Field(default=None, description="Username (if configured)")
+    username: str | None = Field(
+        default=None,
+        description="Username (if configured)",
+    )
 
 
 class WebhookStatus(BaseModel):
     """Webhook status and configuration."""
-    
+
     configured: bool = Field(description="True if URL is configured")
     url: str | None = Field(default=None, description="Target webhook URL")
-    has_custom_headers: bool = Field(default=False, description="True if custom headers set")
+    has_custom_headers: bool = Field(
+        default=False,
+        description="True if custom headers set",
+    )
 
 
 class IntegrationsStatus(BaseModel):
     """Status of all integrations."""
-    
+
     opcua: OpcUaStatus
     mqtt: MqttStatus
     webhook: WebhookStatus
@@ -179,19 +244,22 @@ class IntegrationsStatus(BaseModel):
 
 class IntegrationsUpdate(BaseModel):
     """Request to update integration settings. All fields are optional."""
-    
+
     # OPC UA
     opcua_enabled: bool | None = None
     opcua_port: int | None = Field(default=None, ge=1, le=65535)
     opcua_update_interval_ms: int | None = Field(default=None, ge=0)
-    
+
     # MQTT
     mqtt_broker: str | None = None
     mqtt_port: int | None = Field(default=None, ge=1, le=65535)
     mqtt_topic: str | None = None
     mqtt_username: str | None = None
     mqtt_password: str | None = None
-    
+
     # Webhook
     webhook_url: str | None = None
-    webhook_headers: str | None = Field(default=None, description="JSON string of headers")
+    webhook_headers: str | None = Field(
+        default=None,
+        description="JSON string of headers",
+    )

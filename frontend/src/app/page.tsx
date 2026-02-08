@@ -24,6 +24,8 @@ type InferResponse = {
   image_height: number;
   detections: Detection[];
   filter_applied?: string | null;
+  privacy_applied?: boolean | null;
+  privacy_faces?: number | null;
 };
 
 const DEFAULT_API_BASE =
@@ -157,6 +159,23 @@ export default function HomePage() {
         return;
       }
       setResult(json as InferResponse);
+      // If privacy was applied, swap preview to anonymized image
+      if (json.privacy_applied && file) {
+        try {
+          const anonForm = new FormData();
+          anonForm.append("image", file);
+          const anonResp = await fetch(
+            `${apiBase}/api/v1/privacy/anonymize`,
+            { method: "POST", body: anonForm }
+          );
+          if (anonResp.ok) {
+            const blob = await anonResp.blob();
+            setImageUrl(URL.createObjectURL(blob));
+          }
+        } catch {
+          // Keep original preview on error
+        }
+      }
       toast.success(t("notify.inferenceComplete", { count: json.detections?.length ?? 0 }));
     } catch (e) {
       const errMsg = String(e);
@@ -187,7 +206,9 @@ export default function HomePage() {
       }
 
       setImageUrl(
-        `${apiBase}/api/v1/demo/image?name=${encodeURIComponent(selectedDemo)}`
+        json.privacy_applied
+          ? `${apiBase}/api/v1/demo/image/anonymized?name=${encodeURIComponent(selectedDemo)}`
+          : `${apiBase}/api/v1/demo/image?name=${encodeURIComponent(selectedDemo)}`
       );
       setFile(null);
       setResult(json as InferResponse);
@@ -555,6 +576,25 @@ export default function HomePage() {
                 <div className={`text-sm text-muted ${styles.resultsInfo}`}>
                   Model: <code>{result.model_path?.split("/").pop() ?? "—"}</code>
                 </div>
+
+                {result.privacy_applied && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "var(--space-2)",
+                      padding: "var(--space-2) var(--space-3)",
+                      marginBottom: "var(--space-3)",
+                      background: "var(--color-bg-tertiary)",
+                      borderRadius: "var(--radius-md)",
+                      borderLeft: "4px solid var(--color-primary)",
+                      fontSize: "var(--font-size-sm)"
+                    }}
+                  >
+                    <span>🔒</span>
+                    <span>{t("privacy.facesBlurred", { count: result.privacy_faces ?? 0 })}</span>
+                  </div>
+                )}
 
                 {result.detections.length > 0 ? (
                   <div className="flex flex-col gap-2">

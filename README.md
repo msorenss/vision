@@ -55,7 +55,7 @@ services:
       - NEXT_PUBLIC_API_BASE=http://localhost:8000
     ports:
       - "3000:3000"
-      
+
   mqtt:
     image: eclipse-mosquitto:2.0
     restart: unless-stopped
@@ -122,6 +122,49 @@ Open:
 | `VISION_MQTT_TOPIC` | `vision/results` | MQTT topic for results |
 | `VISION_OPCUA_ENABLE` | `0` | Enable OPC UA server on port 4840 |
 
+### Privacy & Anonymization
+
+Optional face anonymization before inference (GDPR compliance).
+Uses the **Ultra-Light-Fast-Generic-Face-Detector** (ULFD, MIT license) — a ~1 MB ONNX model suitable for CPU and commercial use.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VISION_PRIVACY_FACE_BLUR` | `0` | Enable privacy pre-processing |
+| `VISION_PRIVACY_MODEL_PATH` | - | Path to face detector ONNX bundle (model.onnx) |
+| `VISION_PRIVACY_MODE` | `blur` | `blur` or `pixelate` |
+| `VISION_PRIVACY_MIN_SCORE` | `0.15` | Minimum face score to anonymize (ULFD default) |
+| `VISION_PRIVACY_BLUR_RADIUS` | `12` | Gaussian blur radius |
+| `VISION_PRIVACY_PIXELATE_SIZE` | `10` | Pixelation block size |
+| `VISION_PRIVACY_LETTERBOX` | `1` | Use letterbox preprocessing |
+| `VISION_PRIVACY_NMS_IOU` | `0.3` | NMS IoU threshold |
+
+**Privacy API:**
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/privacy` | GET | Privacy status (enabled, model, mode, min_score) |
+
+When enabled, faces are automatically anonymized before the main detection model runs. The API response includes `privacy_applied` (boolean) and `privacy_faces` (count) fields.
+
+**Docker example with privacy:**
+
+```yaml
+services:
+  runner:
+    image: marcussorensson218/vision-runner:1.3.5
+    environment:
+      - VISION_MODEL_PATH=/models/demo/v1/model.onnx
+      - VISION_PRIVACY_FACE_BLUR=1
+      - VISION_PRIVACY_MODEL_PATH=/models/privacy/ulfd/v1/model.onnx
+      - VISION_PRIVACY_MIN_SCORE=0.15
+    volumes:
+      - ./models:/models:ro
+      - ./input:/input
+      - ./output:/output
+    ports:
+      - "8000:8000"
+```
+
 ## Auto-Processing Example
 
 Process images automatically and move them to a "processed" folder:
@@ -169,6 +212,8 @@ models/
 | `/api/v1/infer` | POST | Run inference on image |
 | `/api/v1/demo/files` | GET | List files in input |
 | `/api/v1/demo/infer?name=file.jpg` | GET | Infer on existing file |
+| `/api/v1/settings` | GET | Current settings |
+| `/api/v1/privacy` | GET | Privacy / anonymization status |
 
 ### Inference via cURL
 

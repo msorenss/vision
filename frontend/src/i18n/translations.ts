@@ -164,6 +164,23 @@ export const translations = {
         'watcher.autoMove': 'Auto-flytt',
         'watcher.folders': 'Visa mappsökvägar',
         'watcher.enableHint': 'Ställ in VISION_WATCH=1 för att aktivera',
+
+        // Privacy
+        'privacy.title': 'Integritet & Anonymisering',
+        'privacy.status': 'Status',
+        'privacy.enabled': 'Aktiverad',
+        'privacy.disabled': 'Inaktiverad',
+        'privacy.modelLoaded': 'Modell laddad',
+        'privacy.model': 'Modell',
+        'privacy.minScore': 'Min poäng',
+        'privacy.mode': 'Läge',
+        'privacy.modeLabel': 'Anonymiseringsläge',
+        'privacy.blur': 'Oskärpa',
+        'privacy.pixelate': 'Pixelering',
+        'privacy.facesBlurred': '{count} ansikten anonymiserade',
+        'privacy.enableHint': 'Ställ in VISION_PRIVACY_FACE_BLUR=1 för att aktivera',
+        'privacy.enableLabel': 'Aktivera ansikts-anonymisering',
+        'privacy.runtimeDisabled': 'Sätt VISION_ALLOW_RUNTIME_SETTINGS=1 för att ändra inställningar.',
     },
 
     en: {
@@ -327,6 +344,23 @@ export const translations = {
         'watcher.autoMove': 'Auto-move',
         'watcher.folders': 'Show folder paths',
         'watcher.enableHint': 'Set VISION_WATCH=1 to enable',
+
+        // Privacy
+        'privacy.title': 'Privacy & Anonymization',
+        'privacy.status': 'Status',
+        'privacy.enabled': 'Enabled',
+        'privacy.disabled': 'Disabled',
+        'privacy.modelLoaded': 'Model loaded',
+        'privacy.model': 'Model',
+        'privacy.minScore': 'Min score',
+        'privacy.mode': 'Mode',
+        'privacy.modeLabel': 'Anonymization mode',
+        'privacy.blur': 'Blur',
+        'privacy.pixelate': 'Pixelate',
+        'privacy.facesBlurred': '{count} faces anonymized',
+        'privacy.enableHint': 'Set VISION_PRIVACY_FACE_BLUR=1 to enable',
+        'privacy.enableLabel': 'Enable face anonymization',
+        'privacy.runtimeDisabled': 'Set VISION_ALLOW_RUNTIME_SETTINGS=1 to change settings.',
     },
 
     nl: {
@@ -454,6 +488,23 @@ export const translations = {
         'watcher.autoMove': 'Auto-verplaatsen',
         'watcher.folders': 'Toon mappaden',
         'watcher.enableHint': 'Stel VISION_WATCH=1 in om te activeren',
+
+        // Privacy
+        'privacy.title': 'Privacy & Anonimisering',
+        'privacy.status': 'Status',
+        'privacy.enabled': 'Ingeschakeld',
+        'privacy.disabled': 'Uitgeschakeld',
+        'privacy.modelLoaded': 'Model geladen',
+        'privacy.model': 'Model',
+        'privacy.minScore': 'Min score',
+        'privacy.mode': 'Modus',
+        'privacy.modeLabel': 'Anonimiseringsmodus',
+        'privacy.blur': 'Vervagen',
+        'privacy.pixelate': 'Pixeleren',
+        'privacy.facesBlurred': '{count} gezichten geanonimiseerd',
+        'privacy.enableHint': 'Stel VISION_PRIVACY_FACE_BLUR=1 in om te activeren',
+        'privacy.enableLabel': 'Gezichtsanonimisering inschakelen',
+        'privacy.runtimeDisabled': 'Stel VISION_ALLOW_RUNTIME_SETTINGS=1 in om instellingen te wijzigen.',
     },
 
     sk: {
@@ -581,6 +632,23 @@ export const translations = {
         'watcher.autoMove': 'Auto-presun',
         'watcher.folders': 'Zobraziť cesty',
         'watcher.enableHint': 'Nastavte VISION_WATCH=1 pre aktiváciu',
+
+        // Privacy
+        'privacy.title': 'Súkromie & Anonymizácia',
+        'privacy.status': 'Stav',
+        'privacy.enabled': 'Povolené',
+        'privacy.disabled': 'Zakázané',
+        'privacy.modelLoaded': 'Model načítaný',
+        'privacy.model': 'Model',
+        'privacy.minScore': 'Min skóre',
+        'privacy.mode': 'Režim',
+        'privacy.modeLabel': 'Režim anonymizácie',
+        'privacy.blur': 'Rozmazanie',
+        'privacy.pixelate': 'Pixelovanie',
+        'privacy.facesBlurred': '{count} tvárí anonymizovaných',
+        'privacy.enableHint': 'Nastavte VISION_PRIVACY_FACE_BLUR=1 pre aktiváciu',
+        'privacy.enableLabel': 'Povoliť anonymizáciu tvárí',
+        'privacy.runtimeDisabled': 'Nastavte VISION_ALLOW_RUNTIME_SETTINGS=1 pre zmenu nastavení.',
     },
 
     zh: {
@@ -708,6 +776,23 @@ export const translations = {
         'watcher.autoMove': '自动移动',
         'watcher.folders': '显示文件夹路径',
         'watcher.enableHint': '设置 VISION_WATCH=1 以启用',
+
+        // Privacy
+        'privacy.title': '隐私与匿名化',
+        'privacy.status': '状态',
+        'privacy.enabled': '已启用',
+        'privacy.disabled': '已禁用',
+        'privacy.modelLoaded': '模型已加载',
+        'privacy.model': '模型',
+        'privacy.minScore': '最低分数',
+        'privacy.mode': '模式',
+        'privacy.modeLabel': '匿名化模式',
+        'privacy.blur': '模糊',
+        'privacy.pixelate': '像素化',
+        'privacy.facesBlurred': '{count} 个面部已匿名化',
+        'privacy.enableHint': '设置 VISION_PRIVACY_FACE_BLUR=1 以启用',
+        'privacy.enableLabel': '启用面部匿名化',
+        'privacy.runtimeDisabled': '设置 VISION_ALLOW_RUNTIME_SETTINGS=1 以更改设置。',
     },
 
     fr: {
@@ -835,6 +920,23 @@ export const translations = {
         'watcher.autoMove': 'Déplacement auto',
         'watcher.folders': 'Voir chemins',
         'watcher.enableHint': 'Régler VISION_WATCH=1 pour activer',
+
+        // Privacy
+        'privacy.title': 'Confidentialité & Anonymisation',
+        'privacy.status': 'Statut',
+        'privacy.enabled': 'Activé',
+        'privacy.disabled': 'Désactivé',
+        'privacy.modelLoaded': 'Modèle chargé',
+        'privacy.model': 'Modèle',
+        'privacy.minScore': 'Score min',
+        'privacy.mode': 'Mode',
+        'privacy.modeLabel': "Mode d'anonymisation",
+        'privacy.blur': 'Flou',
+        'privacy.pixelate': 'Pixelisation',
+        'privacy.facesBlurred': '{count} visages anonymisés',
+        'privacy.enableHint': 'Régler VISION_PRIVACY_FACE_BLUR=1 pour activer',
+        'privacy.enableLabel': "Activer l'anonymisation des visages",
+        'privacy.runtimeDisabled': 'Régler VISION_ALLOW_RUNTIME_SETTINGS=1 pour modifier les paramètres.',
     },
 
     es: {
@@ -962,6 +1064,23 @@ export const translations = {
         'watcher.autoMove': 'Auto-mover',
         'watcher.folders': 'Ver rutas',
         'watcher.enableHint': 'Establecer VISION_WATCH=1 para activar',
+
+        // Privacy
+        'privacy.title': 'Privacidad y Anonimización',
+        'privacy.status': 'Estado',
+        'privacy.enabled': 'Habilitado',
+        'privacy.disabled': 'Deshabilitado',
+        'privacy.modelLoaded': 'Modelo cargado',
+        'privacy.model': 'Modelo',
+        'privacy.minScore': 'Puntuación mín',
+        'privacy.mode': 'Modo',
+        'privacy.modeLabel': 'Modo de anonimización',
+        'privacy.blur': 'Desenfoque',
+        'privacy.pixelate': 'Pixelado',
+        'privacy.facesBlurred': '{count} rostros anonimizados',
+        'privacy.enableHint': 'Establecer VISION_PRIVACY_FACE_BLUR=1 para activar',
+        'privacy.enableLabel': 'Activar anonimización de rostros',
+        'privacy.runtimeDisabled': 'Establecer VISION_ALLOW_RUNTIME_SETTINGS=1 para cambiar ajustes.',
     }
 } as const;
 

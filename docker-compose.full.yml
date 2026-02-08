@@ -40,6 +40,12 @@ services:
       - VISION_MQTT_BROKER=${VISION_MQTT_BROKER:-mqtt}
       - VISION_MQTT_TOPIC=${VISION_MQTT_TOPIC:-vision/results}
       - VISION_OPCUA_ENABLE=${VISION_OPCUA_ENABLE:-1}
+
+      # Privacy / Face Anonymization
+      - VISION_PRIVACY_FACE_BLUR=${VISION_PRIVACY_FACE_BLUR:-0}
+      - VISION_PRIVACY_MODEL_PATH=${VISION_PRIVACY_MODEL_PATH:-/models/privacy/ulfd/v1/model.onnx}
+      - VISION_PRIVACY_MODE=${VISION_PRIVACY_MODE:-blur}
+      - VISION_PRIVACY_MIN_SCORE=${VISION_PRIVACY_MIN_SCORE:-0.15}
     volumes:
       - ./models:/models
       - ./datasets:/datasets
