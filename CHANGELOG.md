@@ -1,0 +1,79 @@
+# Changelog
+
+## v1.4.0 — 2025-07-15
+
+### Features
+
+#### Privacy & Face Anonymization
+- **ULFD face detection engine** — MIT-licensed Ultra-Light-Fast-Detection model via ONNX Runtime
+- **Three critical bug fixes** in privacy engine:
+  - Prior box decoding now correctly triggers when `priors.shape[0] == boxes.shape[0]`
+  - Preprocessing changed from `/255` to `(pixel-127)/128` (ULFD standard)
+  - Default `min_score` lowered from `0.5` to `0.15` for ULFD sensitivity
+- **Privacy API endpoints:**
+  - `GET /api/v1/privacy` — status & configuration
+  - `POST /api/v1/privacy` — runtime settings update (mode, min_score, enable/disable)
+  - `POST /api/v1/privacy/anonymize` — returns anonymized JPEG
+  - `GET /api/v1/demo/image/anonymized?name=` — anonymized demo image
+- **Blur and pixelate modes** — configurable via `VISION_PRIVACY_MODE`
+- **Smoke test script** — `backend/scripts/privacy_smoke_test.py`
+
+#### Frontend Privacy UI
+- **Privacy badge** in inference results: "🔒 X ansikten anonymiserade"
+- **Anonymized image preview** — after inference, preview swaps to show anonymized version
+- **Settings page controls:**
+  - Enable/disable privacy toggle
+  - Blur / Pixelate mode selector
+  - Min-score slider (0–100%)
+  - Model status & ULFD badge
+  - Runtime settings warning
+
+#### Internationalization
+- Privacy translations for all 7 locales: **sv, en, nl, sk, zh, fr, es**
+- 17 new translation keys per locale
+
+#### Integrations
+- **OPC UA** server support with runtime start/stop
+- **MQTT** publish with configurable broker/topic
+- **Webhook** with custom headers
+- Test endpoints for webhook and MQTT
+- Runtime settings update via `POST /api/v1/integrations`
+
+#### Other
+- **Model upload** endpoint (`POST /api/v1/models/upload`)
+- **Detection filter system** — create, apply, delete named filters with include/exclude class lists
+- **Filtered inference** endpoints (`POST /api/v1/infer/filtered`, `GET /api/v1/demo/infer/filtered`)
+- **Watcher status** endpoint
+
+### Fixes
+- Fixed all Python lint errors (PEP8 E501 line length, E114 indentation, E303 blank lines, E741 ambiguous variable names)
+- Fixed TypeScript `baseUrl` deprecation warning for TS 7.0 (`ignoreDeprecations: "6.0"`)
+- Removed mosquitto runtime files from git tracking
+
+### Docker
+- Images: `marcussorensson218/vision-runner:1.4.0`, `vision-ui:1.4.0`, `vision-modelprep:1.4.0`, `vision-mcp:1.4.0`
+- New environment variables:
+  - `VISION_PRIVACY_FACE_BLUR` — enable privacy (1/0)
+  - `VISION_PRIVACY_MODEL_PATH` — path to ULFD model
+  - `VISION_PRIVACY_MIN_SCORE` — detection threshold (0.0–1.0)
+  - `VISION_PRIVACY_MODE` — `blur` or `pixelate`
+  - `VISION_PRIVACY_LETTERBOX` — letterbox preprocessing (1/0)
+  - `VISION_PRIVACY_NMS_IOU` — NMS IoU threshold
+  - `VISION_PRIVACY_BLUR_RADIUS` — Gaussian blur radius
+  - `VISION_PRIVACY_PIXELATE_SIZE` — pixelation block size
+
+### Roadmap (plan.md)
+- **P11** ✅ Privacy / ansiktsanonymisering — Done
+- **P13** 📋 Video Mode (MP4/AVI/MOV)
+- **P14** 📋 Valbar Detektionsfunktion (multi-model)
+- **P15** 📋 Export av Bearbetade Bilder & Video
+
+---
+
+## v1.3.5
+
+- Documentation updates
+- OPC UA 40100 events and state machine
+- Integrations API (OPC UA, MQTT, Webhook)
+- MCP server for AI assistant integration
+- Initial full-stack vision inference application
