@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.4.3 — 2026-02-08
+
+### Improvements
+- **Docker Compose alignment** — Synced `docker-compose.runner.yml` with `docker-compose.full.yml`:
+  - Added `VISION_WATCH_PROCESSED`, `VISION_WATCH_MODE` env vars
+  - Added integrations block (Webhook, MQTT, OPC UA)
+  - Added privacy/face anonymization env vars
+  - Added `./datasets:/datasets` volume mount
+  - Added OPC UA port `4840`
+  - Changed `VISION_ALLOW_RUNTIME_SETTINGS` default to `1`
+- **README.md rewrite** — Updated to reflect v1.4.x project status:
+  - Added features overview section
+  - Complete API endpoint documentation (~40+ endpoints)
+  - Docker Compose files table with usage examples
+  - Privacy and auto-processing examples updated to v1.4.x images
+  - Added Dataset/Training, Filters, Registry, Integrations endpoint tables
+  - Added OpenVINO env vars, project structure section
+  - Updated all Docker image tags and references
+
 ## v1.4.0 — 2025-07-15
 
 ### Features

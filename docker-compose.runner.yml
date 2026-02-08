@@ -27,20 +27,32 @@ services:
       - VISION_WATCH=1
       - VISION_WATCH_INPUT=/input
       - VISION_WATCH_OUTPUT=/output
+      - VISION_WATCH_PROCESSED=${VISION_WATCH_PROCESSED:-}
+      - VISION_WATCH_MODE=${VISION_WATCH_MODE:-json}
       # Optional: persist uploaded images into /input/_uploads
       - VISION_SAVE_UPLOADS=${VISION_SAVE_UPLOADS:-0}
       - VISION_SAVE_UPLOADS_SUBDIR=${VISION_SAVE_UPLOADS_SUBDIR:-_uploads}
       # Optional: allow POST /api/v1/demo/clear (DANGEROUS if /input points to OneDrive/Desktop)
       - VISION_DEMO_ALLOW_MUTATIONS=${VISION_DEMO_ALLOW_MUTATIONS:-0}
       # Optional: allow UI settings page to update backend settings at runtime
-      - VISION_ALLOW_RUNTIME_SETTINGS=${VISION_ALLOW_RUNTIME_SETTINGS:-0}
-      # Optional: bootstrap a standard model if model.onnx is missing.
-      # Recommended: provide a prebuilt bundle zip URL.
-      # - VISION_BOOTSTRAP=1
-      # - VISION_BOOTSTRAP_BUNDLE_URL=https://.../model-bundle.zip
+      - VISION_ALLOW_RUNTIME_SETTINGS=${VISION_ALLOW_RUNTIME_SETTINGS:-1}
+
+      # Integrations
+      - VISION_WEBHOOK_URL=${VISION_WEBHOOK_URL:-}
+      - VISION_MQTT_BROKER=${VISION_MQTT_BROKER:-}
+      - VISION_MQTT_TOPIC=${VISION_MQTT_TOPIC:-vision/results}
+      - VISION_OPCUA_ENABLE=${VISION_OPCUA_ENABLE:-0}
+
+      # Privacy / Face Anonymization
+      - VISION_PRIVACY_FACE_BLUR=${VISION_PRIVACY_FACE_BLUR:-0}
+      - VISION_PRIVACY_MODEL_PATH=${VISION_PRIVACY_MODEL_PATH:-/models/privacy/ulfd/v1/model.onnx}
+      - VISION_PRIVACY_MODE=${VISION_PRIVACY_MODE:-blur}
+      - VISION_PRIVACY_MIN_SCORE=${VISION_PRIVACY_MIN_SCORE:-0.15}
     volumes:
       - ./models:/models
+      - ./datasets:/datasets
       - ${VISION_INPUT_HOST_PATH:-./input}:/input
       - ${VISION_OUTPUT_HOST_PATH:-./output}:/output
     ports:
       - "8000:8000"
+      - "4840:4840" # OPC UA
