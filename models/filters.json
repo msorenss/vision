@@ -14,5 +14,14 @@
     ],
     "exclude_classes": [],
     "min_confidence": 0.5
+  },
+  "orange": {
+    "name": "orange",
+    "enabled": true,
+    "include_classes": [
+      "orange"
+    ],
+    "exclude_classes": [],
+    "min_confidence": 0.5
   }
 }
