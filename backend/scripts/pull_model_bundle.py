@@ -10,8 +10,9 @@ from urllib.request import Request, urlopen
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Download a model bundle zip from a Builder API and extract it locally. "
-            "This is intended for Raspberry Pi Runner deployments."
+            "Download a model bundle zip from a"
+            " Builder API and extract it locally."
+            " Intended for Raspberry Pi Runners."
         )
     )
     parser.add_argument(

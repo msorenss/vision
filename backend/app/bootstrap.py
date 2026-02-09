@@ -56,7 +56,8 @@ def bootstrap_model_if_needed() -> None:
         os.environ["VISION_MODEL_PATH"] = str(model_file)
 
     # If present, validate it can be loaded by the installed ONNX Runtime.
-    # If it fails to load (e.g. unsupported opset), we will re-export/re-download.
+    # If it fails to load (e.g. unsupported opset),
+    # we will re-export/re-download.
     if model_file.exists():
         try:
             import onnxruntime as ort

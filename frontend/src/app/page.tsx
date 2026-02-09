@@ -342,6 +342,7 @@ export default function HomePage() {
 
         <nav className="header-nav">
           <Link href="/" className="btn btn-ghost">{t("nav.home")}</Link>
+          <Link href="/video" className="btn btn-ghost">{t("video.title")}</Link>
           <Link href="/datasets" className="btn btn-ghost">Datasets</Link>
           <Link href="/training" className="btn btn-ghost">Training</Link>
           <Link href="/settings" className="btn btn-ghost">{t("nav.settings")}</Link>

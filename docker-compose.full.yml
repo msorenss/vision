@@ -46,6 +46,10 @@ services:
       - VISION_PRIVACY_MODEL_PATH=${VISION_PRIVACY_MODEL_PATH:-/models/privacy/ulfd/v1/model.onnx}
       - VISION_PRIVACY_MODE=${VISION_PRIVACY_MODE:-blur}
       - VISION_PRIVACY_MIN_SCORE=${VISION_PRIVACY_MIN_SCORE:-0.15}
+
+      # Video Mode (P13)
+      - VISION_VIDEO_FRAME_INTERVAL=${VISION_VIDEO_FRAME_INTERVAL:-5}
+      - VISION_VIDEO_MAX_FRAMES=${VISION_VIDEO_MAX_FRAMES:-300}
     volumes:
       - ./models:/models
       - ./datasets:/datasets

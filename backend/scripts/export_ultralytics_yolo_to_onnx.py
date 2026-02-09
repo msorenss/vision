@@ -8,7 +8,8 @@ from pathlib import Path
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Export an Ultralytics YOLO model to an ONNX bundle usable by the CPU Runner."
+            "Export an Ultralytics YOLO model to an"
+            " ONNX bundle usable by the CPU Runner."
         )
     )
     parser.add_argument(
@@ -44,7 +45,10 @@ def main() -> int:
     model = YOLO(args.model)
 
     # Export with NMS in graph so the Runner can parse outputs easily.
-    exported = model.export(format="onnx", imgsz=args.imgsz, nms=True, opset=args.opset)
+    exported = model.export(
+        format="onnx", imgsz=args.imgsz,
+        nms=True, opset=args.opset,
+    )
 
     # Ultralytics returns a path-like; copy/move into bundle.
     exported_path = Path(str(exported)).resolve()
@@ -53,8 +57,14 @@ def main() -> int:
 
     # labels.txt
     names = model.names if hasattr(model, "names") else {}
-    labels = [names[i] for i in sorted(names.keys())] if isinstance(names, dict) else []
-    (out_dir / "labels.txt").write_text("\n".join(labels) + "\n", encoding="utf-8")
+    labels = (
+        [names[i] for i in sorted(names.keys())]
+        if isinstance(names, dict) else []
+    )
+    (out_dir / "labels.txt").write_text(
+        "\n".join(labels) + "\n",
+        encoding="utf-8",
+    )
 
     # meta.json
     meta = {
@@ -62,7 +72,10 @@ def main() -> int:
         "export": {"format": "onnx", "nms": True, "opset": args.opset},
         "source_model": args.model,
     }
-    (out_dir / "meta.json").write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+    (out_dir / "meta.json").write_text(
+        json.dumps(meta, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
     print(f"Wrote bundle: {out_dir}")
     print(f"- model: {target}")

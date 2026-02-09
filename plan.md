@@ -99,29 +99,29 @@ Leverera ansikts-anonymisering som kan slås på via env-flagga, med fallback-mo
 - [ ] Coral TPU (Edge TPU) integration.
 - [ ] Hailo-8 integration (via ONNX EP).
 
-### P13 – Video Mode
+### P13 – Video Mode (Done ✅)
 >
 > **Goal**: Stödja vanliga videoformat (MP4, AVI, MOV, MKV, WebM) utöver enstaka bilder.
 
-- [ ] **Backend**:
-  - [ ] Video-ingest via OpenCV (`cv2.VideoCapture`) — extrahera frames.
-  - [ ] Nytt endpoint `POST /api/v1/infer/video` som tar emot videofil.
-  - [ ] Frame sampling-strategi: alla frames, var N:te, eller FPS-baserat (konfigurerbart).
-  - [ ] Batch-inferens per frame med bounding box-resultat.
-  - [ ] Valfritt: returnera annoterad video (bounding boxes inritade) som nedladdning.
-  - [ ] Privacy-stöd: anonymisera ansikten per frame innan detektion.
-  - [ ] Config: `VISION_VIDEO_FRAME_INTERVAL`, `VISION_VIDEO_MAX_FRAMES`.
-- [ ] **API-respons**:
-  - [ ] `VideoInferResponse` med per-frame detektioner + sammanfattning.
-  - [ ] Streaming-progress (SSE eller polling) under lång videobearbetning.
-- [ ] **Frontend**:
-  - [ ] Video-uppladdning (drag-and-drop, filväljare med video-MIME).
-  - [ ] Progress-bar under bearbetning.
-  - [ ] Frame-navigator: bläddra mellan frames och se detektioner per frame.
-  - [ ] Video-preview med annoterade bounding boxes.
-- [ ] **Watch Folder**:
-  - [ ] Stöd för videofiler i watch-mappen (auto-process).
-  - [ ] JSON-output per video (sammanfattning + per-frame).
+- [x] **Backend**:
+  - [x] Video-ingest via OpenCV (`cv2.VideoCapture`) — extrahera frames.
+  - [x] Nytt endpoint `POST /api/v1/infer/video` som tar emot videofil.
+  - [x] Frame sampling-strategi: alla frames, var N:te, eller FPS-baserat (konfigurerbart).
+  - [x] Batch-inferens per frame med bounding box-resultat.
+  - [x] Valfritt: returnera annoterad video (bounding boxes inritade) som nedladdning.
+  - [x] Privacy-stöd: anonymisera ansikten per frame innan detektion.
+  - [x] Config: `VISION_VIDEO_FRAME_INTERVAL`, `VISION_VIDEO_MAX_FRAMES`.
+- [x] **API-respons**:
+  - [x] `VideoInferResponse` med per-frame detektioner + sammanfattning.
+  - [x] Streaming-progress (SSE eller polling) under lång videobearbetning.
+- [x] **Frontend**:
+  - [x] Video-uppladdning (drag-and-drop, filväljare med video-MIME).
+  - [x] Progress-bar under bearbetning.
+  - [x] Frame-navigator: bläddra mellan frames och se detektioner per frame.
+  - [x] Video-preview med annoterade bounding boxes.
+- [x] **Watch Folder**:
+  - [x] Stöd för videofiler i watch-mappen (auto-process).
+  - [x] JSON-output per video (sammanfattning + per-frame).
 
 #### PI-plan för P13 (Video Mode)
 
@@ -131,32 +131,32 @@ Stödja vanliga videoformat i hela flödet: upload, inferens, preview, watch fol
 **Spår & Stories**
 
 1) **Video Ingest & Frame Extraction (3–4 dagar)**
-- [ ] Lägg till `opencv-python-headless` i requirements.
-- [ ] Hjälparklass `VideoFrameExtractor` (öppna, sampla frames, stäng).
-- [ ] Konfigurerbart: var N:te frame, max antal frames, FPS-target.
+- [x] Lägg till `opencv-python-headless` i requirements.
+- [x] Hjälparklass `VideoFrameExtractor` (öppna, sampla frames, stäng).
+- [x] Konfigurerbart: var N:te frame, max antal frames, FPS-target.
 
 2) **Backend API (3–4 dagar)**
-- [ ] `POST /api/v1/infer/video` endpoint.
-- [ ] `VideoInferResponse` schema (frames, detektioner per frame, total summary).
-- [ ] Streaming progress via SSE (`/api/v1/infer/video/status/{job_id}`).
-- [ ] Bakgrundsjobb (async task) för längre videor.
+- [x] `POST /api/v1/infer/video` endpoint.
+- [x] `VideoInferResponse` schema (frames, detektioner per frame, total summary).
+- [x] Streaming progress via SSE (`/api/v1/infer/video/status/{job_id}`).
+- [x] Bakgrundsjobb (async task) för längre videor.
 
 3) **Frontend (4–5 dagar)**
-- [ ] Utöka uppladdning till att acceptera video.
-- [ ] Progress-indikator under bearbetning.
-- [ ] Frame-navigering (slider/timeline) med detektionsresultat per frame.
-- [ ] Video-export: nedladdning av annoterad video.
+- [x] Utöka uppladdning till att acceptera video.
+- [x] Progress-indikator under bearbetning.
+- [x] Frame-navigering (slider/timeline) med detektionsresultat per frame.
+- [x] Video-export: nedladdning av annoterad video.
 
 4) **Watch Folder & Integration (2 dagar)**
-- [ ] Watcher känner igen videofiler.
-- [ ] JSON-output med per-frame-resultat.
-- [ ] MQTT/Webhook-notifiering vid klar video.
+- [x] Watcher känner igen videofiler.
+- [x] JSON-output med per-frame-resultat.
+- [x] MQTT/Webhook-notifiering vid klar video.
 
 **Definition of Done**
-- [ ] MP4/AVI/MOV kan laddas upp och infereras.
-- [ ] Per-frame-resultat visas i UI.
-- [ ] Privacy fungerar även på video (blur per frame).
-- [ ] Watch folder hanterar videofiler.
+- [x] MP4/AVI/MOV kan laddas upp och infereras.
+- [x] Per-frame-resultat visas i UI.
+- [x] Privacy fungerar även på video (blur per frame).
+- [x] Watch folder hanterar videofiler.
 
 ### P14 – Valbar Detektionsfunktion
 >

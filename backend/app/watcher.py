@@ -12,6 +12,9 @@ from PIL import Image
 from watchfiles import Change, awatch
 
 from app.inference.engine import get_engine
+from app.inference.video import (
+    VideoFrameExtractor, is_video_file,
+)
 from app.integrations import webhook, mqtt_client
 from app.integrations.opcua_server import server_instance as opcua_server
 
@@ -33,21 +36,22 @@ def _truthy(value: str | None) -> bool:
 
 def load_watch_config() -> WatchConfig:
     """Load watch configuration from environment variables.
-    
+
     Environment variables:
     - VISION_WATCH: Enable folder watching (1/true to enable)
     - VISION_WATCH_INPUT: Input folder to watch (default: /input)
     - VISION_WATCH_OUTPUT: Output folder for JSON results (default: /output)
     - VISION_WATCH_PROCESSED: Folder to move processed images to (optional)
-    - VISION_WATCH_MODE: Output mode - 'json', 'move', or 'both' (default: both if processed dir set, else json)
+    - VISION_WATCH_MODE: Output mode - 'json', 'move',
+      or 'both' (default: both if processed dir set)
     """
     enabled = _truthy(os.getenv("VISION_WATCH"))
     input_dir = Path(os.getenv("VISION_WATCH_INPUT", "/input"))
     output_dir = Path(os.getenv("VISION_WATCH_OUTPUT", "/output"))
-    
+
     processed_env = os.getenv("VISION_WATCH_PROCESSED", "")
     processed_dir = Path(processed_env) if processed_env else None
-    
+
     mode_env = os.getenv("VISION_WATCH_MODE", "").lower()
     if mode_env in {"json", "move", "both"}:
         mode = mode_env  # type: ignore
@@ -55,7 +59,7 @@ def load_watch_config() -> WatchConfig:
         mode = "both"  # Default to both if processed dir is set
     else:
         mode = "json"  # Default to json only
-    
+
     return WatchConfig(
         enabled=enabled,
         input_dir=input_dir,
@@ -66,7 +70,15 @@ def load_watch_config() -> WatchConfig:
 
 
 def _is_image(path: Path) -> bool:
-    return path.suffix.lower() in {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".heic", ".heif"}
+    return path.suffix.lower() in {
+        ".jpg", ".jpeg", ".png", ".bmp",
+        ".webp", ".heic", ".heif",
+    }
+
+
+def _is_media(path: Path) -> bool:
+    """Return True for both image and video files."""
+    return _is_image(path) or is_video_file(path)
 
 
 async def _wait_for_stable_file(
@@ -107,13 +119,13 @@ def _processed_image_path(cfg: WatchConfig, image_path: Path) -> Path | None:
     """Get the destination path for a processed image."""
     if not cfg.processed_dir:
         return None
-    
+
     # Preserve relative folder structure
     try:
         rel = image_path.relative_to(cfg.input_dir)
     except ValueError:
         rel = Path(image_path.name)
-    
+
     dest_dir = cfg.processed_dir / rel.parent
     dest_dir.mkdir(parents=True, exist_ok=True)
     return dest_dir / rel.name
@@ -124,7 +136,7 @@ def _move_to_processed(cfg: WatchConfig, image_path: Path) -> Path | None:
     dest = _processed_image_path(cfg, image_path)
     if not dest:
         return None
-    
+
     try:
         # Use shutil.move to handle cross-device moves
         shutil.move(str(image_path), str(dest))
@@ -141,7 +153,7 @@ def _move_to_processed(cfg: WatchConfig, image_path: Path) -> Path | None:
 
 async def run_watch_loop() -> None:
     """Main watch loop that monitors input folder for new images.
-    
+
     When a new image is detected:
     1. Waits for the file to be fully written
     2. Runs inference on the image
@@ -153,7 +165,7 @@ async def run_watch_loop() -> None:
     cfg = load_watch_config()
     if not cfg.enabled:
         return
-        
+
     # Start OPC UA Server (if enabled via env)
     await opcua_server.start()
 
@@ -163,7 +175,11 @@ async def run_watch_loop() -> None:
         cfg.processed_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"[watcher] Watching {cfg.input_dir} for images...")
-    print(f"[watcher] Output: {cfg.output_dir}, Processed: {cfg.processed_dir or '(disabled)'}")
+    processed = cfg.processed_dir or '(disabled)'
+    print(
+        f"[watcher] Output: {cfg.output_dir}, "
+        f"Processed: {processed}",
+    )
     print(f"[watcher] Mode: {cfg.mode}")
 
     engine = None
@@ -182,10 +198,10 @@ async def run_watch_loop() -> None:
                 continue
 
             path = Path(file_str)
-            if not _is_image(path):
+            if not _is_media(path):
                 continue
-            
-            # Skip files already in processed folder (if it's a subdirectory of input)
+
+            # Skip files already in processed folder
             if cfg.processed_dir:
                 try:
                     path.relative_to(cfg.processed_dir)
@@ -194,19 +210,25 @@ async def run_watch_loop() -> None:
                     pass  # Not in processed folder, continue
 
             out_json = _output_json_path(cfg, path)
-            
+
             # Skip if already processed (JSON exists or file was moved)
             if out_json.exists():
                 continue
 
             await _wait_for_stable_file(path)
-            
-            # Double-check file still exists (might have been moved by another process)
+
+            # Double-check file still exists
             if not path.exists():
                 continue
 
             print(f"[watcher] Processing: {path.name}")
 
+            # --- Video files ---
+            if is_video_file(path):
+                await _process_video(cfg, path, engine, out_json)
+                continue
+
+            # --- Image files ---
             try:
                 pil = Image.open(path).convert("RGB")
             except Exception as e:
@@ -246,7 +268,13 @@ async def run_watch_loop() -> None:
             # Integrations
             asyncio.create_task(webhook.send_webhook(payload))
             asyncio.create_task(mqtt_client.publish_results(payload))
-            asyncio.create_task(opcua_server.update_result(payload, engine.configured_model_path or "Unknown"))
+            asyncio.create_task(
+                opcua_server.update_result(
+                    payload,
+                    engine.configured_model_path
+                    or "Unknown",
+                ),
+            )
 
             # Write JSON result to disk if configured
             if cfg.mode in {"json", "both"}:
@@ -254,7 +282,7 @@ async def run_watch_loop() -> None:
                     json.dumps(payload, indent=2) + "\n",
                     encoding="utf-8",
                 )
-            
+
             # Move to processed folder if in move or both mode
             if cfg.mode in {"move", "both"} and cfg.processed_dir:
                 dest = _move_to_processed(cfg, path)
@@ -263,7 +291,11 @@ async def run_watch_loop() -> None:
                     # Update JSON with new location if we wrote it
                     if cfg.mode == "both" and out_json.exists():
                         try:
-                            data = json.loads(out_json.read_text(encoding="utf-8"))
+                            data = json.loads(
+                                out_json.read_text(
+                                    encoding="utf-8",
+                                ),
+                            )
                             data["processed_path"] = str(dest)
                             out_json.write_text(
                                 json.dumps(data, indent=2) + "\n",
@@ -271,6 +303,113 @@ async def run_watch_loop() -> None:
                             )
                         except Exception:
                             pass
-            
+
             det_count = len(detections)
             print(f"[watcher] Done: {path.name} -> {det_count} detections")
+
+
+async def _process_video(
+    cfg: WatchConfig,
+    path: Path,
+    engine,
+    out_json: Path,
+) -> None:
+    """Process a video file from the watch folder."""
+    import os as _os
+    from collections import defaultdict
+
+    frame_interval = int(_os.getenv("VISION_VIDEO_FRAME_INTERVAL", "5"))
+    max_frames = int(_os.getenv("VISION_VIDEO_MAX_FRAMES", "300"))
+
+    try:
+        extractor = VideoFrameExtractor(
+            path,
+            frame_interval=frame_interval,
+            max_frames=max_frames,
+        )
+        meta = extractor.open()
+    except Exception as exc:
+        print(f"[watcher] Failed to open video {path.name}: {exc}")
+        if cfg.mode in {"json", "both"}:
+            out_json.write_text(
+                json.dumps(
+                    {
+                        "ok": False,
+                        "error": str(exc),
+                        "video": str(path),
+                    },
+                    indent=2,
+                ) + "\n",
+                encoding="utf-8",
+            )
+        return
+
+    frames_out: list[dict] = []
+    label_counter: dict[str, int] = defaultdict(int)
+    total_dets = 0
+
+    for fi, pil_image in extractor.extract_frames():
+        try:
+            detections = engine.predict(pil_image)
+        except Exception as exc:
+            print(
+                f"[watcher] Inference failed on frame"
+                f" {fi.index} of {path.name}: {exc}",
+            )
+            continue
+
+        for d in detections:
+            label_counter[d.label] += 1
+        total_dets += len(detections)
+
+        frames_out.append({
+            "frame_index": fi.index,
+            "timestamp_ms": fi.timestamp_ms,
+            "detections": [d.model_dump() for d in detections],
+        })
+
+    extractor.close()
+
+    payload = {
+        "ok": True,
+        "type": "video",
+        "video": str(path),
+        "video_width": meta.width,
+        "video_height": meta.height,
+        "fps": meta.fps,
+        "duration_ms": meta.duration_ms,
+        "frame_interval": frame_interval,
+        "frames_analysed": len(frames_out),
+        "total_detections": total_dets,
+        "unique_labels": sorted(label_counter.keys()),
+        "label_counts": dict(label_counter),
+        "frames": frames_out,
+    }
+
+    # Integrations
+    summary_payload = {k: v for k, v in payload.items() if k != "frames"}
+    asyncio.create_task(webhook.send_webhook(summary_payload))
+    asyncio.create_task(mqtt_client.publish_results(summary_payload))
+    model_path = engine.configured_model_path or "Unknown"
+    asyncio.create_task(
+        opcua_server.update_result(
+            summary_payload, model_path,
+        ),
+    )
+
+    if cfg.mode in {"json", "both"}:
+        out_json.write_text(
+            json.dumps(payload, indent=2) + "\n",
+            encoding="utf-8",
+        )
+
+    if cfg.mode in {"move", "both"} and cfg.processed_dir:
+        dest = _move_to_processed(cfg, path)
+        if dest:
+            print(f"[watcher] Moved to: {dest}")
+
+    print(
+        f"[watcher] Done video: {path.name} -> "
+        f"{len(frames_out)} frames, "
+        f"{total_dets} detections",
+    )

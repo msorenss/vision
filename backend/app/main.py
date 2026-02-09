@@ -10,6 +10,7 @@ from app.bootstrap import bootstrap_model_if_needed
 from app.api.routes import router
 from app.api.dataset_routes import router as dataset_router
 from app.api.training_routes import router as training_router
+from app.api.video_routes import router as video_router
 from app.middleware import RequestLoggingMiddleware
 from app.watcher import load_watch_config, run_watch_loop
 
@@ -17,12 +18,17 @@ from app.watcher import load_watch_config, run_watch_loop
 def _configure_logging() -> None:
     """Configure structured JSON logging."""
     level = os.getenv("VISION_LOG_LEVEL", "INFO").upper()
-    
+
     # Simple structured format
     fmt = "%(asctime)s %(levelname)s %(name)s %(message)s"
     if os.getenv("VISION_LOG_JSON", "0") in {"1", "true"}:
-        fmt = '{"time":"%(asctime)s","level":"%(levelname)s","logger":"%(name)s","msg":"%(message)s"}'
-    
+        fmt = (
+            '{"time":"%(asctime)s"'
+            ',"level":"%(levelname)s"'
+            ',"logger":"%(name)s"'
+            ',"msg":"%(message)s"}'
+        )
+
     logging.basicConfig(
         level=getattr(logging, level, logging.INFO),
         format=fmt,
@@ -42,7 +48,7 @@ def _try_register_heif() -> None:
 
 def create_app() -> FastAPI:
     _configure_logging()
-    
+
     app = FastAPI(
         title="Vision Runner API",
         version="0.1.0",
@@ -64,6 +70,7 @@ def create_app() -> FastAPI:
     app.include_router(router)
     app.include_router(dataset_router)
     app.include_router(training_router)
+    app.include_router(video_router)
 
     @app.on_event("startup")
     async def _startup() -> None:
@@ -82,7 +89,9 @@ def create_app() -> FastAPI:
             from app.integrations.opcua_callbacks import setup_opcua_callbacks
             await setup_opcua_callbacks()
         except Exception as e:
-            logging.getLogger("app.main").warning(f"OPC UA Callbacks setup failed (or not active): {e}")
+            logging.getLogger("app.main").warning(
+                "OPC UA Callbacks setup failed: %s", e,
+            )
 
     return app
 

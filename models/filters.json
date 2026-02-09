@@ -6,15 +6,6 @@
     "exclude_classes": [],
     "min_confidence": 0.5
   },
-  "bus": {
-    "name": "bus",
-    "enabled": true,
-    "include_classes": [
-      "bus"
-    ],
-    "exclude_classes": [],
-    "min_confidence": 0.5
-  },
   "person": {
     "name": "person",
     "enabled": true,
