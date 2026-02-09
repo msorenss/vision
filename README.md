@@ -9,7 +9,9 @@ AI-powered object detection using ONNX Runtime. CPU-first, runs on any platform 
 - **Watch Folder** — Auto-process images and videos dropped into a directory
 - **Web UI** — Next.js frontend with dark mode, bounding box visualization, i18n (7 languages)
 - **Privacy / Face Anonymization** — GDPR-ready, ULFD face detector with blur/pixelate modes
-- **Detection Filters** — Named filter profiles with include/exclude class lists
+- **Detection Filters** — Named filter profiles with include/exclude class lists, built-in quick-select (All, Persons, Vehicles)
+- **Task Picker** — Select detection task (general, face, license plate) with automatic model/filter switching
+- **Image Export** — Download annotated, anonymized, or combined images; batch export as ZIP
 - **Model Registry** — Upload, switch, and manage multiple ONNX model bundles
 - **Dataset Management** — Create datasets, upload images, annotate, and export for YOLO training
 - **Training** — Start/stop YOLO training jobs, view logs and history, export to ONNX/OpenVINO
@@ -22,9 +24,9 @@ AI-powered object detection using ONNX Runtime. CPU-first, runs on any platform 
 Pull the images:
 
 ```bash
-docker pull marcussorensson218/vision-runner:1.5.0
-docker pull marcussorensson218/vision-modelprep:1.5.0
-docker pull marcussorensson218/vision-ui:1.5.0
+docker pull marcussorensson218/vision-runner:1.5.5
+docker pull marcussorensson218/vision-modelprep:1.5.5
+docker pull marcussorensson218/vision-ui:1.5.5
 ```
 
 Create a `docker-compose.yml`:
@@ -32,7 +34,7 @@ Create a `docker-compose.yml`:
 ```yaml
 services:
   modelprep:
-    image: marcussorensson218/vision-modelprep:1.5.0
+    image: marcussorensson218/vision-modelprep:1.5.5
     environment:
       - VISION_BOOTSTRAP=1
       - VISION_MODEL_PATH=/models/demo/v1/model.onnx
@@ -41,7 +43,7 @@ services:
       - ./models:/models
 
   runner:
-    image: marcussorensson218/vision-runner:1.5.0
+    image: marcussorensson218/vision-runner:1.5.5
     restart: unless-stopped
     depends_on:
       modelprep:
@@ -53,6 +55,8 @@ services:
       - VISION_WATCH_OUTPUT=/output
       - VISION_PRIVACY_FACE_BLUR=0
       - VISION_PRIVACY_MODEL_PATH=/models/privacy/ulfd/v1/model.onnx
+      - VISION_EXPORT_ANNOTATED=0
+      - VISION_EXPORT_FORMAT=jpg
     volumes:
       - ./models:/models:ro
       - ./datasets:/datasets
@@ -63,7 +67,7 @@ services:
       - "4840:4840"
 
   ui:
-    image: marcussorensson218/vision-ui:1.5.0
+    image: marcussorensson218/vision-ui:1.5.5
     restart: unless-stopped
     depends_on:
       - runner
@@ -73,7 +77,7 @@ services:
       - "3000:3000"
 
   mcp:
-    image: marcussorensson218/vision-mcp:1.5.0
+    image: marcussorensson218/vision-mcp:1.5.5
     depends_on:
       - runner
     environment:
@@ -151,7 +155,9 @@ docker compose -f docker-compose.runner.yml -f docker-compose.openvino.yml up --
 | `VISION_WATCH_INPUT` | `/input` | Folder to watch |
 | `VISION_WATCH_OUTPUT` | `/output` | JSON results folder |
 | `VISION_WATCH_PROCESSED` | — | Move processed images here |
-| `VISION_WATCH_MODE` | `json` | `json`, `move`, or `both` |
+| `VISION_WATCH_MODE` | `json` | `json`, `move`, `both`, or `annotated` |
+| `VISION_EXPORT_ANNOTATED` | `0` | Save annotated images from watch folder |
+| `VISION_EXPORT_FORMAT` | `jpg` | Annotated output format (`jpg` or `png`) |
 
 ### Video Inference
 
@@ -242,14 +248,25 @@ Uses the **Ultra-Light-Fast-Generic-Face-Detector** (ULFD, MIT license) — a ~1
 | `/api/v1/registry` | GET | List all available model bundles |
 | `/api/v1/registry/activate` | POST | Activate a model bundle |
 
-### Detection Filters
+### Detection Filters & Tasks
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/v1/filters` | GET | List all filters |
+| `/api/v1/filters` | GET | List all filters (incl. built-in profiles) |
 | `/api/v1/filters/{name}` | GET | Get a filter |
 | `/api/v1/filters` | POST | Create a filter |
-| `/api/v1/filters/{name}` | DELETE | Delete a filter |
+| `/api/v1/filters/{name}` | DELETE | Delete a filter (blocked for built-in) |
+| `/api/v1/tasks` | GET | List available detection tasks |
+
+### Image & Batch Export
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/export/image` | GET | Export demo image with annotations/privacy |
+| `/api/v1/export/image` | POST | Upload image, get annotated version back |
+| `/api/v1/export/batch` | POST | Start batch export (ZIP of annotated images) |
+| `/api/v1/export/batch/{job_id}/status` | GET | Batch export progress |
+| `/api/v1/export/batch/{job_id}` | GET | Download completed batch ZIP |
 
 ### Datasets & Training
 
@@ -300,7 +317,7 @@ Process images automatically and move them to a "processed" folder:
 ```yaml
 services:
   runner:
-    image: marcussorensson218/vision-runner:1.5.0
+    image: marcussorensson218/vision-runner:1.5.5
     environment:
       - VISION_MODEL_PATH=/models/demo/v1/model.onnx
       - VISION_WATCH=1
@@ -334,6 +351,7 @@ services:
       - VISION_PRIVACY_FACE_BLUR=1
       - VISION_PRIVACY_MODEL_PATH=/models/privacy/ulfd/v1/model.onnx
       - VISION_PRIVACY_MIN_SCORE=0.15
+      - VISION_EXPORT_ANNOTATED=1
     volumes:
       - ./models:/models:ro
       - ./input:/input
@@ -411,8 +429,9 @@ Configure Open-WebUI to connect to `http://localhost:8080/sse`.
 | Tag | Description |
 |-----|-------------|
 | `latest` | Most recent stable build |
-| `1.5.0` | Current version (video mode) |
-| `1.4.3` | Previous stable (docker compose alignment) |
+| `1.5.5` | Current version (export + task picker + filters) |
+| `1.5.0` | Video mode |
+| `1.4.3` | Docker compose alignment |
 | `1.3.5` | Industrial integrations |
 
 ## Project Structure

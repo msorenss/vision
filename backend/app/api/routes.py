@@ -18,6 +18,8 @@ from fastapi.responses import FileResponse, Response, StreamingResponse
 from PIL import Image, ImageOps
 
 from app.api.schema import (
+    BatchExportRequest,
+    BatchExportStatus,
     BundleInfo,
     FilterConfig,
     FilterCreateRequest,
@@ -34,6 +36,8 @@ from app.api.schema import (
     RegistryResponse,
     SettingsInfo,
     SettingsUpdate,
+    TaskInfo,
+    TaskListResponse,
     WatcherStatus,
     WebhookStatus,
 )
@@ -861,6 +865,10 @@ async def infer(
     background_tasks: BackgroundTasks,
     image: UploadFile | None = File(None),
     file: UploadFile | None = File(None),
+    classes: str | None = Query(
+        default=None,
+        description="Comma-separated class names to keep (e.g. person,car)",
+    ),
 ) -> InferResponse:
     upload = image or file
     if upload is None:
@@ -916,6 +924,10 @@ async def infer(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    # Inline class filter (P14)
+    if classes:
+        detections = _filter_by_classes(detections, classes)
 
     background_tasks.add_task(
         _process_integrations,
@@ -995,6 +1007,21 @@ def _save_filters(filters: dict[str, FilterConfig]) -> None:
         for name, f in filters.items()
     }
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+
+def _filter_by_classes(
+    detections: list,
+    classes_csv: str,
+) -> list:
+    """Filter detections to only include the given class names.
+
+    *classes_csv* is a comma-separated string like ``"person,car,bus"``.
+    Matching is case-insensitive.
+    """
+    wanted = {c.strip().lower() for c in classes_csv.split(",") if c.strip()}
+    if not wanted:
+        return detections
+    return [d for d in detections if d.label.lower() in wanted]
 
 
 def _apply_filter(
@@ -1098,6 +1125,12 @@ def delete_filter(name: str) -> dict:
         raise HTTPException(
             status_code=404,
             detail=f"Filter '{name}' not found",
+        )
+
+    if getattr(filters[name], "builtin", False):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete built-in filter '{name}'.",
         )
 
     del filters[name]
@@ -1241,6 +1274,13 @@ async def infer_with_filter(
     background_tasks: BackgroundTasks,
     image: UploadFile = File(...),
     filter_name: str = Query(default="default", description="Filter to apply"),
+    classes: str | None = Query(
+        default=None,
+        description=(
+            "Comma-separated class names to keep"
+            " (overrides filter include_classes)"
+        ),
+    ),
 ) -> InferResponse:
     """Run inference with a specific filter applied."""
     # Load filter
@@ -1282,6 +1322,10 @@ async def infer_with_filter(
     # Apply filter
     filtered_detections = _apply_filter(detections, filter_config)
 
+    # Inline class filter (P14)
+    if classes:
+        filtered_detections = _filter_by_classes(filtered_detections, classes)
+
     background_tasks.add_task(
         _process_integrations,
         filtered_detections,
@@ -1305,6 +1349,10 @@ async def demo_infer_with_filter(
     background_tasks: BackgroundTasks,
     name: str = Query(..., description="Demo file name"),
     filter_name: str = Query(default="default", description="Filter to apply"),
+    classes: str | None = Query(
+        default=None,
+        description="Comma-separated class names to keep",
+    ),
 ) -> InferResponse:
     """Run inference on a demo file with a specific filter applied."""
     filters = _load_filters()
@@ -1348,6 +1396,10 @@ async def demo_infer_with_filter(
     detections = engine.predict(pil)
     filtered_detections = _apply_filter(detections, filters[filter_name])
 
+    # Inline class filter (P14)
+    if classes:
+        filtered_detections = _filter_by_classes(filtered_detections, classes)
+
     background_tasks.add_task(
         _process_integrations,
         filtered_detections,
@@ -1388,6 +1440,407 @@ def get_model_labels() -> dict:
         "labels": labels,
         "count": len(labels),
     }
+
+
+# ============ P14: Tasks ============
+
+def _get_tasks() -> list[TaskInfo]:
+    """Build the list of available detection tasks."""
+    tasks: list[TaskInfo] = []
+
+    # 1. Main detection model
+    engine = get_engine()
+    main_classes: list[str] = []
+    if engine.configured_model_path:
+        labels_path = Path(engine.configured_model_path).parent / "labels.txt"
+        if labels_path.exists():
+            main_classes = [
+                ln.strip()
+                for ln in labels_path.read_text(encoding="utf-8").splitlines()
+                if ln.strip()
+            ]
+
+    tasks.append(
+        TaskInfo(
+            name="detection",
+            description="General object detection (YOLO)",
+            icon="🔍",
+            model_name=Path(engine.configured_model_path).parent.name
+            if engine.configured_model_path else None,
+            model_path=engine.configured_model_path,
+            classes=main_classes,
+            available=engine.loaded,
+        )
+    )
+
+    # 2. Face detection (privacy model)
+    pe = get_privacy_engine()
+    tasks.append(
+        TaskInfo(
+            name="face",
+            description="Face detection / anonymization",
+            icon="🔒",
+            model_name="ULFD" if pe.loaded else None,
+            model_path=pe.configured_model_path,
+            classes=["face"],
+            available=pe.loaded,
+        )
+    )
+
+    # 3. Check for additional task definitions via env
+    tasks_json = os.getenv("VISION_TASKS")
+    if tasks_json:
+        try:
+            extra = json.loads(tasks_json)
+            for t in extra:
+                tasks.append(TaskInfo(**t))
+        except Exception:
+            logger.warning("Invalid VISION_TASKS JSON")
+
+    return tasks
+
+
+@router.get("/api/v1/tasks", response_model=TaskListResponse)
+def list_tasks() -> TaskListResponse:
+    """List available detection tasks."""
+    return TaskListResponse(
+        tasks=_get_tasks(),
+        active_task=os.getenv("VISION_ACTIVE_TASK", "detection"),
+    )
+
+
+# ============ P15: Image Export ============
+
+@router.get("/api/v1/export/image")
+def export_demo_image(
+    name: str = Query(..., description="File name in input directory"),
+    boxes: bool = Query(default=True, description="Draw bounding boxes"),
+    labels: bool = Query(default=True, description="Draw labels"),
+    privacy: bool = Query(default=False, description="Apply privacy blur"),
+    mode: str = Query(
+        default="annotated",
+        description="annotated | privacy_only | original",
+    ),
+    format: str = Query(default="jpeg", description="jpeg | png"),
+    quality: int = Query(default=90, ge=1, le=100),
+    filter_name: str = Query(default="default", description="Filter to apply"),
+    classes: str | None = Query(
+        default=None,
+        description="Comma-separated class filter",
+    ),
+) -> StreamingResponse:
+    """Export a demo image with annotations / privacy.
+
+    Runs inference + annotation and returns the result as an image download.
+    """
+    base = _demo_input_dir()
+    candidate = (base / name).resolve()
+
+    try:
+        candidate.relative_to(base)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file path",
+        ) from exc
+
+    if not candidate.exists() or not candidate.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    try:
+        pil = ImageOps.exif_transpose(Image.open(candidate)).convert("RGB")
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid image: {exc}",
+        ) from exc
+
+    # Privacy blur (before detection, same as normal flow)
+    privacy_applied = False
+    if privacy or mode == "privacy_only":
+        pil, privacy_applied, _ = _maybe_anonymize_image(pil)
+
+    if mode == "privacy_only":
+        # Return just the anonymized image, no boxes
+        buf = io.BytesIO()
+        if format.lower() == "png":
+            pil.save(buf, format="PNG")
+            media = "image/png"
+        else:
+            pil.save(buf, format="JPEG", quality=quality)
+            media = "image/jpeg"
+        buf.seek(0)
+        return StreamingResponse(
+            buf,
+            media_type=media,
+            headers={
+                "Content-Disposition": (
+                    f'attachment; filename="'
+                    f'{Path(name).stem}_privacy.{format}"'
+                ),
+            },
+        )
+
+    if mode == "original":
+        buf = io.BytesIO()
+        if format.lower() == "png":
+            pil.save(buf, format="PNG")
+            media = "image/png"
+        else:
+            pil.save(buf, format="JPEG", quality=quality)
+            media = "image/jpeg"
+        buf.seek(0)
+        return StreamingResponse(
+            buf,
+            media_type=media,
+            headers={
+                "Content-Disposition": (
+                    f'attachment; filename="'
+                    f'{Path(name).stem}.{format}"'
+                ),
+            },
+        )
+
+    # Annotated mode — run inference
+    engine = get_engine()
+    if not engine.configured_model_path:
+        raise HTTPException(status_code=503, detail="No model configured.")
+
+    detections = engine.predict(pil)
+
+    # Apply filters
+    filters = _load_filters()
+    if filter_name in filters:
+        detections = _apply_filter(detections, filters[filter_name])
+    if classes:
+        detections = _filter_by_classes(detections, classes)
+
+    from app.inference.image_export import ImageAnnotator, AnnotationStyle
+
+    style = AnnotationStyle(show_labels=labels)
+    annotator = ImageAnnotator(style)
+    result_img = annotator.annotate(pil, detections)
+
+    buf = io.BytesIO()
+    if format.lower() == "png":
+        result_img.save(buf, format="PNG")
+        media = "image/png"
+    else:
+        result_img.save(buf, format="JPEG", quality=quality)
+        media = "image/jpeg"
+    buf.seek(0)
+
+    fmt = format.lower()
+    suffix = fmt if fmt in ("png", "jpeg", "jpg") else "jpeg"
+    return StreamingResponse(
+        buf,
+        media_type=media,
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{Path(name).stem}_annotated.{suffix}"'
+            ),
+        },
+    )
+
+
+@router.post("/api/v1/export/image")
+async def export_uploaded_image(
+    image: UploadFile = File(...),
+    boxes: bool = Query(default=True),
+    labels: bool = Query(default=True),
+    privacy: bool = Query(default=False),
+    mode: str = Query(default="annotated"),
+    format: str = Query(default="jpeg"),
+    quality: int = Query(default=90, ge=1, le=100),
+    filter_name: str = Query(default="default"),
+    classes: str | None = Query(default=None),
+) -> StreamingResponse:
+    """Upload an image and get back an annotated version."""
+    raw = await image.read()
+
+    try:
+        pil = ImageOps.exif_transpose(
+            Image.open(io.BytesIO(raw))
+        ).convert("RGB")
+    except Exception as exc:
+        raise HTTPException(
+            status_code=415,
+            detail=f"Invalid image: {exc}",
+        ) from exc
+
+    if privacy or mode == "privacy_only":
+        pil, _, _ = _maybe_anonymize_image(pil)
+
+    if mode in ("privacy_only", "original"):
+        buf = io.BytesIO()
+        if format.lower() == "png":
+            pil.save(buf, format="PNG")
+            media = "image/png"
+        else:
+            pil.save(buf, format="JPEG", quality=quality)
+            media = "image/jpeg"
+        buf.seek(0)
+        return StreamingResponse(buf, media_type=media)
+
+    engine = get_engine()
+    if not engine.configured_model_path:
+        raise HTTPException(status_code=503, detail="No model configured.")
+
+    detections = engine.predict(pil)
+
+    filters = _load_filters()
+    if filter_name in filters:
+        detections = _apply_filter(detections, filters[filter_name])
+    if classes:
+        detections = _filter_by_classes(detections, classes)
+
+    from app.inference.image_export import ImageAnnotator, AnnotationStyle
+
+    style = AnnotationStyle(show_labels=labels)
+    annotator = ImageAnnotator(style)
+    result_img = annotator.annotate(pil, detections)
+
+    buf = io.BytesIO()
+    if format.lower() == "png":
+        result_img.save(buf, format="PNG")
+        media = "image/png"
+    else:
+        result_img.save(buf, format="JPEG", quality=quality)
+        media = "image/jpeg"
+    buf.seek(0)
+    return StreamingResponse(buf, media_type=media)
+
+
+# ============ P15: Batch Export ============
+
+_BATCH_JOBS: dict[str, BatchExportStatus] = {}
+_BATCH_FILES: dict[str, Path] = {}
+
+
+@router.post("/api/v1/export/batch", response_model=BatchExportStatus)
+async def batch_export(
+    background_tasks: BackgroundTasks,
+    req: BatchExportRequest,
+) -> BatchExportStatus:
+    """Export multiple images as a ZIP archive with annotations."""
+    import uuid
+
+    job_id = str(uuid.uuid4())[:8]
+    status = BatchExportStatus(
+        job_id=job_id,
+        status="running",
+        total=len(req.files),
+        processed=0,
+    )
+    _BATCH_JOBS[job_id] = status
+
+    background_tasks.add_task(
+        _run_batch_export, job_id, req,
+    )
+
+    return status
+
+
+def _run_batch_export(job_id: str, req: BatchExportRequest) -> None:
+    """Background task that produces a ZIP of annotated images."""
+    import tempfile
+    from app.inference.image_export import ImageAnnotator, AnnotationStyle
+
+    status = _BATCH_JOBS[job_id]
+    base = _demo_input_dir()
+
+    style = AnnotationStyle(show_labels=req.labels)
+    annotator = ImageAnnotator(style)
+
+    engine = get_engine()
+    if not engine.configured_model_path:
+        status.status = "error"
+        status.error = "No model configured"
+        return
+
+    zip_path = Path(
+        tempfile.mktemp(suffix=".zip", prefix="vision_batch_")
+    )
+    try:
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+            for fname in req.files:
+                try:
+                    candidate = (base / fname).resolve()
+                    candidate.relative_to(base)
+                    if not candidate.exists():
+                        continue
+
+                    pil = ImageOps.exif_transpose(
+                        Image.open(candidate)
+                    ).convert("RGB")
+
+                    if req.privacy:
+                        pil, _, _ = _maybe_anonymize_image(pil)
+
+                    if req.boxes:
+                        detections = engine.predict(pil)
+                        pil = annotator.annotate(pil, detections, copy=False)
+
+                    buf = io.BytesIO()
+                    if req.format.lower() == "png":
+                        pil.save(buf, format="PNG")
+                        ext = "png"
+                    else:
+                        pil.save(buf, format="JPEG", quality=req.quality)
+                        ext = "jpg"
+
+                    zf.writestr(
+                        f"{Path(fname).stem}_annotated.{ext}",
+                        buf.getvalue(),
+                    )
+                except Exception as exc:
+                    logger.warning("batch_export skip %s: %s", fname, exc)
+
+                status.processed += 1
+
+        status.status = "done"
+        status.download_url = f"/api/v1/export/batch/{job_id}"
+        _BATCH_FILES[job_id] = zip_path
+
+    except Exception as exc:
+        status.status = "error"
+        status.error = str(exc)
+        logger.error("batch_export failed: %s", exc)
+
+
+@router.get(
+    "/api/v1/export/batch/{job_id}/status",
+    response_model=BatchExportStatus,
+)
+def batch_export_status(job_id: str) -> BatchExportStatus:
+    """Check the status of a batch export job."""
+    if job_id not in _BATCH_JOBS:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return _BATCH_JOBS[job_id]
+
+
+@router.get("/api/v1/export/batch/{job_id}")
+def batch_export_download(job_id: str) -> FileResponse:
+    """Download the ZIP from a completed batch export."""
+    if job_id not in _BATCH_JOBS:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    status = _BATCH_JOBS[job_id]
+    if status.status != "done":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Job not ready (status={status.status})",
+        )
+
+    zip_path = _BATCH_FILES.get(job_id)
+    if not zip_path or not zip_path.exists():
+        raise HTTPException(status_code=404, detail="ZIP file not found")
+
+    return FileResponse(
+        path=str(zip_path),
+        media_type="application/zip",
+        filename=f"vision_export_{job_id}.zip",
+    )
 
 
 # ============ Integrations ============

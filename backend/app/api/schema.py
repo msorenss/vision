@@ -138,6 +138,10 @@ class FilterConfig(BaseModel):
         le=1.0,
         description="Minimum confidence threshold"
     )
+    builtin: bool = Field(
+        default=False,
+        description="True for built-in profiles that cannot be deleted",
+    )
 
 
 class FilterListResponse(BaseModel):
@@ -240,6 +244,78 @@ class IntegrationsStatus(BaseModel):
     opcua: OpcUaStatus
     mqtt: MqttStatus
     webhook: WebhookStatus
+
+
+# ============ P15: Image Export ============
+
+class ImageExportParams(BaseModel):
+    """Parameters for image export."""
+
+    boxes: bool = Field(default=True, description="Draw bounding boxes")
+    labels: bool = Field(default=True, description="Draw labels on boxes")
+    privacy: bool = Field(default=False, description="Apply privacy blur")
+    mode: str = Field(
+        default="annotated",
+        description="annotated | privacy_only | original",
+    )
+    format: str = Field(default="jpeg", description="jpeg | png")
+    quality: int = Field(default=90, ge=1, le=100, description="JPEG quality")
+
+
+class BatchExportRequest(BaseModel):
+    """Request to export multiple images as a ZIP archive."""
+
+    files: list[str] = Field(..., description="List of filenames to export")
+    boxes: bool = True
+    labels: bool = True
+    privacy: bool = False
+    format: str = "jpeg"
+    quality: int = 90
+
+
+class BatchExportStatus(BaseModel):
+    """Status of a batch export job."""
+
+    job_id: str
+    status: str = "pending"  # pending | running | done | error
+    total: int = 0
+    processed: int = 0
+    download_url: str | None = None
+    error: str | None = None
+
+
+# ============ P14: Tasks ============
+
+class TaskInfo(BaseModel):
+    """Info about an available detection task."""
+
+    name: str = Field(..., description="Task identifier")
+    description: str = Field(
+        default="",
+        description="Human-readable description",
+    )
+    icon: str = Field(default="🔍", description="Emoji icon")
+    model_name: str | None = Field(
+        default=None, description="Associated model",
+    )
+    model_path: str | None = Field(
+        default=None, description="Model bundle path",
+    )
+    classes: list[str] = Field(
+        default_factory=list,
+        description="Available classes",
+    )
+    available: bool = Field(
+        default=True,
+        description="Whether model is loaded",
+    )
+
+
+class TaskListResponse(BaseModel):
+    """List of available tasks."""
+
+    tasks: list[TaskInfo]
+    active_task: str | None = None
 
 
 class IntegrationsUpdate(BaseModel):

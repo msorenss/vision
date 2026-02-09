@@ -9,6 +9,7 @@ interface FilterConfig {
     include_classes: string[];
     exclude_classes: string[];
     min_confidence: number;
+    builtin?: boolean;
 }
 
 interface FilterSelectorProps {
@@ -16,6 +17,15 @@ interface FilterSelectorProps {
     onFilterChange?: (filterName: string) => void;
     selectedFilter: string;
 }
+
+const LS_FILTER_KEY = "vision_active_filter";
+
+// Quick-select profiles with icons
+const QUICK_PROFILES: { key: string; icon: string; tKey: string }[] = [
+    { key: "all", icon: "🔍", tKey: "filters.quickAll" },
+    { key: "persons", icon: "🧑", tKey: "filters.quickPersons" },
+    { key: "vehicles", icon: "🚌", tKey: "filters.quickVehicles" },
+];
 
 export function FilterSelector({
     apiBase,
@@ -29,6 +39,19 @@ export function FilterSelector({
     const [isEditing, setIsEditing] = useState(false);
     const [editingFilter, setEditingFilter] = useState<FilterConfig | null>(null);
     const [newFilterName, setNewFilterName] = useState("");
+
+    // Restore from localStorage on mount
+    useEffect(() => {
+        try {
+            const stored = window.localStorage.getItem(LS_FILTER_KEY);
+            if (stored && stored !== selectedFilter && onFilterChange) {
+                onFilterChange(stored);
+            }
+        } catch {
+            // ignore
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const loadFilters = useCallback(async () => {
         try {
@@ -62,6 +85,11 @@ export function FilterSelector({
     const handleFilterSelect = (name: string) => {
         if (onFilterChange) {
             onFilterChange(name);
+        }
+        try {
+            window.localStorage.setItem(LS_FILTER_KEY, name);
+        } catch {
+            // ignore
         }
         setIsOpen(false);
     };
@@ -100,7 +128,7 @@ export function FilterSelector({
                 setEditingFilter(null);
             } else {
                 const data = await res.json();
-                alert(data.detail || "Failed to save filter. Make sure VISION_ALLOW_RUNTIME_SETTINGS=1 is set.");
+                alert(data.detail || "Failed to save filter.");
             }
         } catch (e) {
             console.error("Failed to save filter:", e);
@@ -121,6 +149,9 @@ export function FilterSelector({
                 if (selectedFilter === name) {
                     handleFilterSelect("default");
                 }
+            } else {
+                const data = await res.json();
+                alert(data.detail || "Cannot delete this filter.");
             }
         } catch (e) {
             console.error("Failed to delete filter:", e);
@@ -146,7 +177,6 @@ export function FilterSelector({
             newList = [...list, className];
         }
 
-        // Remove from other list if added to this one
         const newOtherList = otherList.filter((c) => c !== className);
 
         setEditingFilter({
@@ -157,132 +187,207 @@ export function FilterSelector({
     };
 
     const selectedFilterObj = filters.find((f) => f.name === selectedFilter);
+    const customFilters = filters.filter((f) => !f.builtin && f.name !== "default");
 
     return (
-        <div style={{ position: "relative" }}>
-            {/* Filter Button */}
-            <button
-                onClick={() => setIsOpen(!isOpen)}
-                className="btn btn-secondary"
-                style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "var(--space-2)",
-                    minWidth: "140px",
-                }}
-            >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
-                </svg>
-                <span>{selectedFilter || "default"}</span>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M6 9l6 6 6-6" />
-                </svg>
-            </button>
-
-            {/* Dropdown */}
-            {isOpen && !isEditing && (
-                <div
-                    style={{
-                        position: "absolute",
-                        top: "100%",
-                        left: 0,
-                        marginTop: "var(--space-2)",
-                        background: "var(--color-bg-card)",
-                        border: "1px solid var(--color-border)",
-                        borderRadius: "var(--radius-lg)",
-                        boxShadow: "var(--shadow-lg)",
-                        minWidth: "280px",
-                        zIndex: 100,
-                        padding: "var(--space-2)",
-                    }}
-                >
-                    <div style={{ padding: "var(--space-2)", borderBottom: "1px solid var(--color-border)" }}>
-                        <span className="text-sm font-semibold">{t("filters.title")}</span>
-                    </div>
-
-                    {/* Filter List */}
-                    {filters.map((filter) => (
-                        <div
-                            key={filter.name}
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+            {/* Quick-select chip row */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-1)" }}>
+                {QUICK_PROFILES.map((prof) => {
+                    const isActive = selectedFilter === prof.key;
+                    return (
+                        <button
+                            key={prof.key}
+                            onClick={() => handleFilterSelect(prof.key)}
+                            className={`btn ${isActive ? "btn-primary" : "btn-secondary"}`}
                             style={{
+                                padding: "4px 12px",
+                                fontSize: "var(--font-size-sm)",
+                                borderRadius: "var(--radius-full, 999px)",
                                 display: "flex",
                                 alignItems: "center",
-                                justifyContent: "space-between",
-                                padding: "var(--space-2) var(--space-3)",
-                                borderRadius: "var(--radius-md)",
-                                cursor: "pointer",
-                                background:
-                                    selectedFilter === filter.name
-                                        ? "var(--color-primary-light)"
-                                        : "transparent",
+                                gap: "4px",
                             }}
-                            onClick={() => handleFilterSelect(filter.name)}
                         >
-                            <div>
-                                <div className="font-medium">{filter.name}</div>
-                                <div className="text-xs text-muted">
-                                    {filter.include_classes.length > 0
-                                        ? `${t("filters.include")}: ${filter.include_classes.join(", ")}`
-                                        : filter.min_confidence > 0.5
-                                            ? `Min: ${(filter.min_confidence * 100).toFixed(0)}%`
-                                            : t("filters.allClasses")}
-                                </div>
-                            </div>
-                            {filter.name !== "default" && (
-                                <div style={{ display: "flex", gap: "var(--space-1)" }}>
-                                    <button
-                                        className="btn btn-ghost btn-icon"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setEditingFilter(filter);
-                                            setIsEditing(true);
-                                        }}
-                                    >
-                                        ✏️
-                                    </button>
-                                    <button
-                                        className="btn btn-ghost btn-icon"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleDeleteFilter(filter.name);
-                                        }}
-                                    >
-                                        🗑️
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    ))}
+                            <span>{prof.icon}</span>
+                            <span>{t(prof.tKey)}</span>
+                        </button>
+                    );
+                })}
 
-                    {/* Create New Filter */}
-                    <div
+                {/* Dropdown toggle for advanced filters */}
+                <div style={{ position: "relative" }}>
+                    <button
+                        onClick={() => setIsOpen(!isOpen)}
+                        className={`btn ${!QUICK_PROFILES.some((p) => p.key === selectedFilter) && selectedFilter !== "default" ? "btn-primary" : "btn-ghost"}`}
                         style={{
-                            borderTop: "1px solid var(--color-border)",
-                            padding: "var(--space-3)",
-                            marginTop: "var(--space-2)",
+                            padding: "4px 10px",
+                            fontSize: "var(--font-size-sm)",
+                            borderRadius: "var(--radius-full, 999px)",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "4px",
                         }}
                     >
-                        <div style={{ display: "flex", gap: "var(--space-2)" }}>
-                            <input
-                                type="text"
-                                className="input"
-                                placeholder={t("filters.newName")}
-                                value={newFilterName}
-                                onChange={(e) => setNewFilterName(e.target.value)}
-                                style={{ flex: 1 }}
-                            />
-                            <button
-                                className="btn btn-primary"
-                                onClick={handleCreateFilter}
-                                disabled={!newFilterName.trim()}
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
+                        </svg>
+                        <span>
+                            {!QUICK_PROFILES.some((p) => p.key === selectedFilter) && selectedFilter !== "default"
+                                ? selectedFilter
+                                : t("filters.title")}
+                        </span>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M6 9l6 6 6-6" />
+                        </svg>
+                    </button>
+
+                    {/* Dropdown */}
+                    {isOpen && !isEditing && (
+                        <div
+                            style={{
+                                position: "absolute",
+                                top: "100%",
+                                left: 0,
+                                marginTop: "var(--space-2)",
+                                background: "var(--color-bg-card)",
+                                border: "1px solid var(--color-border)",
+                                borderRadius: "var(--radius-lg)",
+                                boxShadow: "var(--shadow-lg)",
+                                minWidth: "280px",
+                                zIndex: 100,
+                                padding: "var(--space-2)",
+                            }}
+                        >
+                            <div style={{ padding: "var(--space-2)", borderBottom: "1px solid var(--color-border)" }}>
+                                <span className="text-sm font-semibold">{t("filters.title")}</span>
+                            </div>
+
+                            {/* Default filter */}
+                            <div
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    padding: "var(--space-2) var(--space-3)",
+                                    borderRadius: "var(--radius-md)",
+                                    cursor: "pointer",
+                                    background: selectedFilter === "default" ? "var(--color-primary-light)" : "transparent",
+                                }}
+                                onClick={() => handleFilterSelect("default")}
                             >
-                                +
-                            </button>
+                                <div>
+                                    <div className="font-medium">default</div>
+                                    <div className="text-xs text-muted">{t("filters.allClasses")} (50%)</div>
+                                </div>
+                            </div>
+
+                            {/* Custom filters */}
+                            {customFilters.map((filter) => (
+                                <div
+                                    key={filter.name}
+                                    style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "space-between",
+                                        padding: "var(--space-2) var(--space-3)",
+                                        borderRadius: "var(--radius-md)",
+                                        cursor: "pointer",
+                                        background:
+                                            selectedFilter === filter.name
+                                                ? "var(--color-primary-light)"
+                                                : "transparent",
+                                    }}
+                                    onClick={() => handleFilterSelect(filter.name)}
+                                >
+                                    <div>
+                                        <div className="font-medium">{filter.name}</div>
+                                        <div className="text-xs text-muted">
+                                            {filter.include_classes.length > 0
+                                                ? `${t("filters.include")}: ${filter.include_classes.join(", ")}`
+                                                : filter.min_confidence > 0.5
+                                                    ? `Min: ${(filter.min_confidence * 100).toFixed(0)}%`
+                                                    : t("filters.allClasses")}
+                                        </div>
+                                    </div>
+                                    <div style={{ display: "flex", gap: "var(--space-1)" }}>
+                                        <button
+                                            className="btn btn-ghost btn-icon"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setEditingFilter(filter);
+                                                setIsEditing(true);
+                                            }}
+                                        >
+                                            ✏️
+                                        </button>
+                                        <button
+                                            className="btn btn-ghost btn-icon"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteFilter(filter.name);
+                                            }}
+                                        >
+                                            🗑️
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+
+                            {/* Create New Filter */}
+                            <div
+                                style={{
+                                    borderTop: "1px solid var(--color-border)",
+                                    padding: "var(--space-3)",
+                                    marginTop: "var(--space-2)",
+                                }}
+                            >
+                                <div style={{ display: "flex", gap: "var(--space-2)" }}>
+                                    <input
+                                        type="text"
+                                        className="input"
+                                        placeholder={t("filters.newName")}
+                                        value={newFilterName}
+                                        onChange={(e) => setNewFilterName(e.target.value)}
+                                        style={{ flex: 1 }}
+                                    />
+                                    <button
+                                        className="btn btn-primary"
+                                        onClick={handleCreateFilter}
+                                        disabled={!newFilterName.trim()}
+                                    >
+                                        +
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
-            )}
+            </div>
+
+            {/* Active filter info chip */}
+            {selectedFilterObj &&
+                selectedFilter !== "default" &&
+                selectedFilter !== "all" &&
+                selectedFilterObj.include_classes.length > 0 && (
+                    <div className="text-xs text-muted" style={{ display: "flex", flexWrap: "wrap", gap: "4px", alignItems: "center" }}>
+                        <span>{t("filters.activeClasses")}:</span>
+                        {selectedFilterObj.include_classes.map((cls) => (
+                            <span
+                                key={cls}
+                                className="badge"
+                                style={{
+                                    fontSize: "10px",
+                                    padding: "2px 6px",
+                                    background: "var(--color-bg-tertiary)",
+                                    borderRadius: "var(--radius-full, 999px)",
+                                }}
+                            >
+                                {cls}
+                            </span>
+                        ))}
+                    </div>
+                )}
 
             {/* Edit Modal */}
             {isEditing && editingFilter && (
@@ -429,24 +534,6 @@ export function FilterSelector({
                     </div>
                 </div>
             )}
-
-            {/* Filter Badge */}
-            {selectedFilterObj &&
-                selectedFilter !== "default" &&
-                (selectedFilterObj.include_classes.length > 0 ||
-                    selectedFilterObj.min_confidence > 0.5) && (
-                    <div
-                        className="badge badge-primary"
-                        style={{
-                            position: "absolute",
-                            top: "-8px",
-                            right: "-8px",
-                            fontSize: "10px",
-                        }}
-                    >
-                        {selectedFilterObj.include_classes.length || "F"}
-                    </div>
-                )}
         </div>
     );
 }

@@ -25,7 +25,9 @@ class WatchConfig:
     input_dir: Path
     output_dir: Path
     processed_dir: Path | None  # Where to move processed images
-    mode: Literal["json", "move", "both"]  # Output mode
+    mode: Literal["json", "move", "both", "annotated"]  # Output mode
+    export_annotated: bool = False  # Also save annotated images
+    export_format: str = "jpg"  # jpg or png
 
 
 def _truthy(value: str | None) -> bool:
@@ -53,12 +55,22 @@ def load_watch_config() -> WatchConfig:
     processed_dir = Path(processed_env) if processed_env else None
 
     mode_env = os.getenv("VISION_WATCH_MODE", "").lower()
-    if mode_env in {"json", "move", "both"}:
+    if mode_env in {"json", "move", "both", "annotated"}:
         mode = mode_env  # type: ignore
     elif processed_dir:
         mode = "both"  # Default to both if processed dir is set
     else:
         mode = "json"  # Default to json only
+
+    export_annotated = (
+        _truthy(os.getenv("VISION_EXPORT_ANNOTATED"))
+        or mode == "annotated"
+    )
+    export_format = os.getenv(
+        "VISION_EXPORT_FORMAT", "jpg",
+    ).lower().strip()
+    if export_format not in {"jpg", "jpeg", "png"}:
+        export_format = "jpg"
 
     return WatchConfig(
         enabled=enabled,
@@ -66,6 +78,8 @@ def load_watch_config() -> WatchConfig:
         output_dir=output_dir,
         processed_dir=processed_dir,
         mode=mode,
+        export_annotated=export_annotated,
+        export_format=export_format,
     )
 
 
@@ -149,6 +163,45 @@ def _move_to_processed(cfg: WatchConfig, image_path: Path) -> Path | None:
             return dest
         except Exception:
             return None
+
+
+def _save_annotated_image(
+    cfg: WatchConfig,
+    image_path: Path,
+    pil: Image.Image,
+    detections: list,
+) -> Path | None:
+    """Save an annotated version of the image to the output dir."""
+    try:
+        from app.inference.image_export import ImageAnnotator
+
+        annotator = ImageAnnotator()
+        annotated = annotator.annotate(pil, detections)
+
+        try:
+            rel = image_path.relative_to(cfg.input_dir)
+        except ValueError:
+            rel = Path(image_path.name)
+
+        out_dir = cfg.output_dir / rel.parent
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        ext = cfg.export_format
+        if ext in ("jpg", "jpeg"):
+            out_path = out_dir / f"{rel.stem}_annotated.jpg"
+            annotated.save(out_path, format="JPEG", quality=90)
+        else:
+            out_path = out_dir / f"{rel.stem}_annotated.png"
+            annotated.save(out_path, format="PNG")
+
+        print(f"[watcher] Saved annotated: {out_path}")
+        return out_path
+    except Exception as exc:
+        print(
+            f"[watcher] Failed to save annotated "
+            f"{image_path.name}: {exc}",
+        )
+        return None
 
 
 async def run_watch_loop() -> None:
@@ -254,6 +307,12 @@ async def run_watch_loop() -> None:
                     )
                 print(f"[watcher] Inference failed for {path.name}: {exc}")
                 continue
+
+            # Write annotated image if configured (P15)
+            if cfg.export_annotated or cfg.mode == "annotated":
+                _save_annotated_image(
+                    cfg, path, pil, detections,
+                )
 
             # Write JSON result if in json or both mode
             # Prepare payload for all outputs

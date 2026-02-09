@@ -9,6 +9,8 @@ import { LanguageSelector } from "@/components/LanguageSelector";
 import { useToast } from "@/components/Toast";
 import { FilterSelector } from "@/components/FilterSelector";
 import { WatcherStatusCard } from "@/components/WatcherStatus";
+import { ExportMenu } from "@/components/ExportMenu";
+import { TaskPicker } from "@/components/TaskPicker";
 import styles from "./page.module.css";
 
 type Detection = {
@@ -62,6 +64,7 @@ export default function HomePage() {
   const [isDragActive, setIsDragActive] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [activeFilter, setActiveFilter] = useState("default");
+  const [activeTask, setActiveTask] = useState("detection");
 
   const imgRef = useRef<HTMLImageElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -449,6 +452,12 @@ export default function HomePage() {
                   onFilterChange={setActiveFilter}
                 />
               </div>
+              {/* Task Picker */}
+              <TaskPicker
+                apiBase={apiBase}
+                selectedTask={activeTask}
+                onTaskChange={setActiveTask}
+              />
               <button
                 onClick={runInference}
                 disabled={!canInfer}
@@ -492,6 +501,13 @@ export default function HomePage() {
               <h3 className={styles.previewHeaderTitle}>{t("preview.title")}</h3>
               {imageUrl && (
                 <div className="flex gap-2">
+                  <ExportMenu
+                    apiBase={apiBase}
+                    demoFileName={selectedDemo || undefined}
+                    hasResult={!!result}
+                    filterName={activeFilter}
+                    privacyAvailable={result?.privacy_applied ?? false}
+                  />
                   <button
                     onClick={() => setZoom(1)}
                     className="btn btn-ghost btn-icon text-sm"

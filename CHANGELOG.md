@@ -1,5 +1,50 @@
 # Changelog
 
+## v1.5.5 — 2026-02-09
+
+### Features
+
+#### Selectable Detection Function (P14)
+- **Task picker UI** — new `TaskPicker` component with horizontal chip row, icons per task (detection, face, license plate)
+- **`GET /api/v1/tasks`** — lists available detection tasks with metadata (name, icon, classes, model path, availability)
+- **Built-in filter profiles** — `all` (min_confidence 0.25), `persons` (person class), `vehicles` (car, bus, truck, motorcycle, bicycle) added to `filters.json` with `builtin: true` flag
+- **Inline `?classes=` filter** — new query parameter on `POST /api/v1/infer`, `POST /api/v1/infer/filtered`, and `GET /api/v1/demo/infer/filtered` for ad-hoc class filtering
+- **Chip-based filter selector** — `FilterSelector` rewritten with quick-select buttons (All, Persons, Vehicles), active class badges, and `localStorage` persistence
+- **Protected built-in filters** — `DELETE /api/v1/filters/{name}` now rejects deletion of `builtin: true` profiles
+
+#### Image & Batch Export (P15)
+- **`ImageAnnotator` class** — new PIL-based annotation engine (`backend/app/inference/image_export.py`) with Volvo Cars color palette, configurable line width, font size, labels, and scores
+- **`GET /api/v1/export/image`** — export demo image with annotations, privacy blur, or both as JPEG/PNG download
+- **`POST /api/v1/export/image`** — upload any image and get back an annotated version
+- **`POST /api/v1/export/batch`** — background job producing ZIP of annotated images with progress tracking
+- **`GET /api/v1/export/batch/{job_id}/status`** — poll batch export progress
+- **`GET /api/v1/export/batch/{job_id}`** — download completed ZIP
+- **Export menu UI** — new `ExportMenu` dropdown component (Original, With detections, Anonymized, Anonymized + detections)
+- **Watch folder annotated mode** — new `VISION_WATCH_MODE=annotated` plus `VISION_EXPORT_ANNOTATED` and `VISION_EXPORT_FORMAT` env vars
+
+#### Frontend
+- **Task picker** — fetches tasks from API, shows available classes as badges, persists selection to `localStorage`
+- **Export menu** — download button with dropdown in preview header, privacy options conditional on availability
+- **i18n** — 25+ new keys across 7 languages (sv, en, nl, sk, zh, fr, es) for export, tasks, and quick-filter strings
+
+### Fixes
+- Fixed duplicate dead code block after `export default` in `FilterSelector.tsx` (caused UI 500 error)
+- Removed duplicate labels endpoint code block in `routes.py`
+- Fixed all Python lint errors (line-too-long, unused variables, extra blank lines)
+
+### Docker
+- Images: `marcussorensson218/vision-runner:1.5.5`, `vision-ui:1.5.5`, `vision-modelprep:1.5.5`, `vision-mcp:1.5.5`
+- New environment variables:
+  - `VISION_EXPORT_ANNOTATED` — save annotated images from watch folder (0/1)
+  - `VISION_EXPORT_FORMAT` — annotated output format (`jpg` or `png`)
+  - `VISION_TASKS` — optional JSON for custom task definitions
+
+### Roadmap
+- **P14** ✅ Valbar Detektionsfunktion — UI, filters, tasks, chip-selector done. Multi-model hot-swap remaining.
+- **P15** ✅ Export av Bearbetade Bilder & Video — Image export, batch export, watch folder annotated done. Batch export UI remaining.
+
+---
+
 ## v1.5.0 — 2026-02-09
 
 ### Features

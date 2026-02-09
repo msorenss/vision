@@ -4,23 +4,44 @@
     "enabled": true,
     "include_classes": [],
     "exclude_classes": [],
-    "min_confidence": 0.5
+    "min_confidence": 0.5,
+    "builtin": true
+  },
+  "all": {
+    "name": "all",
+    "enabled": true,
+    "include_classes": [],
+    "exclude_classes": [],
+    "min_confidence": 0.25,
+    "builtin": true
+  },
+  "persons": {
+    "name": "persons",
+    "enabled": true,
+    "include_classes": ["person"],
+    "exclude_classes": [],
+    "min_confidence": 0.5,
+    "builtin": true
+  },
+  "vehicles": {
+    "name": "vehicles",
+    "enabled": true,
+    "include_classes": ["car", "bus", "truck", "motorcycle", "bicycle"],
+    "exclude_classes": [],
+    "min_confidence": 0.5,
+    "builtin": true
   },
   "person": {
     "name": "person",
     "enabled": true,
-    "include_classes": [
-      "person"
-    ],
+    "include_classes": ["person"],
     "exclude_classes": [],
     "min_confidence": 0.5
   },
   "orange": {
     "name": "orange",
     "enabled": true,
-    "include_classes": [
-      "orange"
-    ],
+    "include_classes": ["orange"],
     "exclude_classes": [],
     "min_confidence": 0.5
   }
