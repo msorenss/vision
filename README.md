@@ -5,14 +5,15 @@ AI-powered object detection using ONNX Runtime. CPU-first, runs on any platform 
 ## Features
 
 - **Inference API** — FastAPI backend with ONNX Runtime (YOLOv8, custom models)
-- **Watch Folder** — Auto-process images dropped into a directory
+- **Video Inference** — Upload MP4/AVI/MOV/MKV/WebM, async processing with SSE progress, annotated export with H.264 preview
+- **Watch Folder** — Auto-process images and videos dropped into a directory
 - **Web UI** — Next.js frontend with dark mode, bounding box visualization, i18n (7 languages)
 - **Privacy / Face Anonymization** — GDPR-ready, ULFD face detector with blur/pixelate modes
 - **Detection Filters** — Named filter profiles with include/exclude class lists
 - **Model Registry** — Upload, switch, and manage multiple ONNX model bundles
 - **Dataset Management** — Create datasets, upload images, annotate, and export for YOLO training
 - **Training** — Start/stop YOLO training jobs, view logs and history, export to ONNX/OpenVINO
-- **Integrations** — OPC UA (40100-1), MQTT, Webhook — all configurable at runtime
+- **Integrations** — OPC UA (40100-1), MQTT, Webhook — all configurable at runtime, works with both image and video
 - **MCP Server** — Model Context Protocol server for AI assistant integration
 - **OpenVINO** — Optional Intel hardware acceleration via override compose file
 
@@ -21,9 +22,9 @@ AI-powered object detection using ONNX Runtime. CPU-first, runs on any platform 
 Pull the images:
 
 ```bash
-docker pull marcussorensson218/vision-runner:1.4.3
-docker pull marcussorensson218/vision-modelprep:1.4.3
-docker pull marcussorensson218/vision-ui:1.4.3
+docker pull marcussorensson218/vision-runner:1.5.0
+docker pull marcussorensson218/vision-modelprep:1.5.0
+docker pull marcussorensson218/vision-ui:1.5.0
 ```
 
 Create a `docker-compose.yml`:
@@ -31,7 +32,7 @@ Create a `docker-compose.yml`:
 ```yaml
 services:
   modelprep:
-    image: marcussorensson218/vision-modelprep:1.4.3
+    image: marcussorensson218/vision-modelprep:1.5.0
     environment:
       - VISION_BOOTSTRAP=1
       - VISION_MODEL_PATH=/models/demo/v1/model.onnx
@@ -40,7 +41,7 @@ services:
       - ./models:/models
 
   runner:
-    image: marcussorensson218/vision-runner:1.4.3
+    image: marcussorensson218/vision-runner:1.5.0
     restart: unless-stopped
     depends_on:
       modelprep:
@@ -62,7 +63,7 @@ services:
       - "4840:4840"
 
   ui:
-    image: marcussorensson218/vision-ui:1.4.3
+    image: marcussorensson218/vision-ui:1.5.0
     restart: unless-stopped
     depends_on:
       - runner
@@ -72,7 +73,7 @@ services:
       - "3000:3000"
 
   mcp:
-    image: marcussorensson218/vision-mcp:1.4.3
+    image: marcussorensson218/vision-mcp:1.5.0
     depends_on:
       - runner
     environment:
@@ -152,6 +153,13 @@ docker compose -f docker-compose.runner.yml -f docker-compose.openvino.yml up --
 | `VISION_WATCH_PROCESSED` | — | Move processed images here |
 | `VISION_WATCH_MODE` | `json` | `json`, `move`, or `both` |
 
+### Video Inference
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VISION_VIDEO_FRAME_INTERVAL` | `5` | Sample every Nth frame |
+| `VISION_VIDEO_MAX_FRAMES` | `300` | Max frames to process per video |
+
 ### Upload & Security
 
 | Variable | Default | Description |
@@ -200,6 +208,12 @@ Uses the **Ultra-Light-Fast-Generic-Face-Detector** (ULFD, MIT license) — a ~1
 |----------|--------|-------------|
 | `/api/v1/infer` | POST | Run inference on uploaded image |
 | `/api/v1/infer/filtered` | POST | Infer with a named detection filter |
+| `/api/v1/infer/video` | POST | Upload video and start async inference |
+| `/api/v1/infer/video/status/{job_id}` | GET | SSE progress stream for video job |
+| `/api/v1/infer/video/result/{job_id}` | GET | Full per-frame detection results |
+| `/api/v1/infer/video/export/{job_id}` | POST | Render annotated video (boxes/labels/privacy) |
+| `/api/v1/infer/video/export/{job_id}` | GET | Download rendered video |
+| `/api/v1/infer/video/preview/{job_id}` | GET | Stream rendered video for playback |
 | `/api/v1/demo/files` | GET | List files in input folder |
 | `/api/v1/demo/infer?name=` | GET | Infer on existing file |
 | `/api/v1/demo/infer/filtered?name=` | GET | Filtered infer on existing file |
@@ -286,7 +300,7 @@ Process images automatically and move them to a "processed" folder:
 ```yaml
 services:
   runner:
-    image: marcussorensson218/vision-runner:1.4.3
+    image: marcussorensson218/vision-runner:1.5.0
     environment:
       - VISION_MODEL_PATH=/models/demo/v1/model.onnx
       - VISION_WATCH=1
@@ -314,7 +328,7 @@ Enable face anonymization (GDPR):
 ```yaml
 services:
   runner:
-    image: marcussorensson218/vision-runner:1.4.3
+    image: marcussorensson218/vision-runner:1.5.0
     environment:
       - VISION_MODEL_PATH=/models/demo/v1/model.onnx
       - VISION_PRIVACY_FACE_BLUR=1
@@ -397,9 +411,9 @@ Configure Open-WebUI to connect to `http://localhost:8080/sse`.
 | Tag | Description |
 |-----|-------------|
 | `latest` | Most recent stable build |
-| `1.4.3` | Current version |
-| `1.3.5` | Previous stable (industrial integrations) |
-| `1.2.0` | Basic API |
+| `1.5.0` | Current version (video mode) |
+| `1.4.3` | Previous stable (docker compose alignment) |
+| `1.3.5` | Industrial integrations |
 
 ## Project Structure
 

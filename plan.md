@@ -1,6 +1,6 @@
 ﻿# Vision – Gemensam projektplan
 
-Senast uppdaterad: 2025-07-15
+Senast uppdaterad: 2026-02-09
 
 Det här dokumentet är den *gemensamma* planen för projektet i den här repot.
 Äldre/idé-dokument (t.ex. "stora arkitekturvisioner") hör hemma i separata filer.
@@ -22,7 +22,8 @@ Bygga ett CPU-first system för bildinferens (YOLO via ONNX Runtime) med:
 - **Architecture**: Docker Compose fullstack (Runner + UI), Model Bundle-format (ONNX+Meta), och one-shot model prep.
 - **Workflow**: Server-side upload persistens, demo-läge, och "Watch folder" för automatisk inferens.
 - **UI**: Modern Next.js frontend med PWA-förberedelser, dark mode, och bounding box visualisering.
-- **Integration**: OPC UA Server (40100-1), MQTT Client, och Webhook-stöd.
+- **Video**: Video-inferens (MP4/AVI/MOV/MKV/WebM) med annoterad export, interpolering och H.264-preview.
+- **Integration**: OPC UA Server (40100-1), MQTT Client, och Webhook-stöd — även för video.
 - **Ops**: Health checks, loggning, "Model Registry" API, samt förbättrat build-flöde i `vision.bat`.
 - **Training**: Dataset management API, tränings-UI, annoteringsverktyg och YOLO-export.
 - **Privacy**: Ansikts-anonymisering (ULFD, MIT-licens) med blur/pixelate, API-status, frontend-integration och i18n.
@@ -225,12 +226,14 @@ Ge användaren kontroll över vilken detektion som körs, med snabbval-profiler 
   - [ ] Valfritt: bara anonymiserad bild (utan bounding boxes) via `?mode=privacy_only`.
   - [ ] Konfigurerbar box-stil: färg, tjocklek, labels on/off.
   - [ ] Nedladdningsknapp i UI bredvid preview.
-- [ ] **Video-export** (kräver P13):
-  - [ ] Endpoint `POST /api/v1/export/video` — skicka video, få tillbaka annoterad video.
-  - [ ] Bounding boxes inritade per frame.
-  - [ ] Privacy-blur per frame (om aktiverat).
-  - [ ] Format: MP4 (H.264) som standard, konfigurerbart.
-  - [ ] Asynkron bearbetning med progress (SSE/polling).
+- [x] **Video-export** (kräver P13):
+  - [x] Endpoint `POST /api/v1/infer/video/export/{job_id}` — rendera annoterad video.
+  - [x] Bounding boxes inritade per frame med smooth interpolering.
+  - [x] Privacy-blur per frame (om aktiverat).
+  - [x] Format: MP4 (H.264) via ffmpeg, browser-kompatibelt.
+  - [x] Asynkron bearbetning med progress (polling).
+  - [x] Preview-endpoint `GET /api/v1/infer/video/preview/{job_id}`.
+  - [x] Download-endpoint `GET /api/v1/infer/video/export/{job_id}`.
 - [ ] **Batch-export**:
   - [ ] Exportera alla bilder i en mapp som ZIP med annoterade versioner.
   - [ ] Endpoint `POST /api/v1/export/batch` — ta emot lista med filnamn.

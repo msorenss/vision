@@ -1,5 +1,57 @@
 # Changelog
 
+## v1.5.0 — 2026-02-09
+
+### Features
+
+#### Video Inference (P13)
+- **Video upload & async inference** — `POST /api/v1/infer/video` accepts MP4, AVI, MOV, MKV, WebM
+- **SSE progress streaming** — `GET /api/v1/infer/video/status/{job_id}`
+- **Per-frame detection results** — `GET /api/v1/infer/video/result/{job_id}`
+- **Frame extraction** — `VideoFrameExtractor` with configurable interval and max frames
+- **Privacy per frame** — face anonymization applied before inference on each frame
+- **Detection filters on video** — `filter_name` query parameter for video endpoint
+- **Watch folder video support** — auto-process video files with JSON output
+
+#### Annotated Video Export
+- **Render annotated video** — `POST /api/v1/infer/video/export/{job_id}` with bounding boxes, labels, privacy blur
+- **Smooth interpolation** — IoU-based greedy matching + linear interpolation between key-frames (no flicker)
+- **H.264 re-encoding** — ffmpeg subprocess for browser-compatible MP4 (yuv420p + faststart)
+- **Preview endpoint** — `GET /api/v1/infer/video/preview/{job_id}` with HTTP range support
+- **Download endpoint** — `GET /api/v1/infer/video/export/{job_id}` for rendered video
+
+#### Video Frontend
+- **Video page** (`/video`) with drag-and-drop upload, SSE progress, frame navigator
+- **Video player** — `<video>` element for annotated video preview
+- **Export controls** — checkboxes for boxes, labels, privacy; render + download buttons
+- **Filter selector** — same filter dropdown as image page, top-right of title row
+- **i18n** — 32 video keys across 7 languages (sv, en, nl, sk, zh, fr, es)
+
+#### Integrations
+- **OPC UA / MQTT / Webhook for video** — video inference now pushes results to all configured integrations
+- **Fix**: main event loop passed to thread-pool worker for reliable `asyncio.run_coroutine_threadsafe()` dispatch
+
+### Fixes
+- Fixed all Python lint errors (E501 line-too-long) across 9 backend files
+- Removed unused `shutil` import in `video_render.py`
+- Fixed comment spacing in color palette (`video_render.py`)
+- Silenced TypeScript `baseUrl` deprecation warning (`ignoreDeprecations: "5.0"`)
+
+### Docker
+- Images: `marcussorensson218/vision-runner:1.5.0`, `vision-ui:1.5.0`, `vision-mcp:1.5.0`
+- **ffmpeg** added to runner image (H.264 video encoding)
+- **opencv-python-headless** added to requirements (video frame extraction)
+- New environment variables:
+  - `VISION_VIDEO_FRAME_INTERVAL` — sample every Nth frame (default: 5)
+  - `VISION_VIDEO_MAX_FRAMES` — max frames to process (default: 300)
+
+### Roadmap
+- **P13** ✅ Video Mode — Done
+- **P15** 🔄 Video-export — Done (image-export still open)
+- **P14** 📋 Valbar Detektionsfunktion (multi-model)
+
+---
+
 ## v1.4.3 — 2026-02-08
 
 ### Improvements
